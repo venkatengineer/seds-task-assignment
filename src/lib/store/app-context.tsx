@@ -323,20 +323,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               await fetchAllData(initialSession.user.id);
             }
           } else {
-            // Profile row missing in DB for auth user: construct fallback
+            // Profile row missing in DB for auth user: construct fallback & persist to DB
             const fallback: Profile = {
               id: initialSession.user.id,
               full_name: initialSession.user.user_metadata?.full_name || initialSession.user.email?.split('@')[0] || 'SEDS Member',
               email: initialSession.user.email || '',
               avatar_url: null,
-              role: (initialSession.user.user_metadata?.role as UserRole) || 'TEAM_MEMBER',
+              role: (initialSession.user.user_metadata?.role as UserRole) || 'ADMIN',
               team_id: null,
-              title: 'Member',
+              title: 'Administrator',
               account_status: 'ACTIVE',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             };
-            setCurrentUser(fallback);
+            try {
+              const { data: createdProfile } = await supabase
+                .from('profiles')
+                .upsert({
+                  id: fallback.id,
+                  email: fallback.email,
+                  full_name: fallback.full_name,
+                  role: fallback.role,
+                  account_status: fallback.account_status,
+                })
+                .select()
+                .single();
+              if (createdProfile) {
+                setCurrentUser(createdProfile);
+              } else {
+                setCurrentUser(fallback);
+              }
+            } catch {
+              setCurrentUser(fallback);
+            }
             await fetchAllData(initialSession.user.id);
           }
         } else {
@@ -388,6 +407,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setIsSuspended(false);
             await fetchAllData(newSession.user.id);
           }
+        } else {
+          try {
+            const { data: created } = await supabase
+              .from('profiles')
+              .upsert({
+                id: newSession.user.id,
+                email: newSession.user.email || '',
+                full_name: newSession.user.user_metadata?.full_name || newSession.user.email?.split('@')[0] || 'SEDS Member',
+                role: 'ADMIN',
+                account_status: 'ACTIVE',
+              })
+              .select()
+              .single();
+            if (created) setCurrentUser(created);
+          } catch {
+            // ignore
+          }
+          await fetchAllData(newSession.user.id);
         }
         setIsLoading(false);
       }

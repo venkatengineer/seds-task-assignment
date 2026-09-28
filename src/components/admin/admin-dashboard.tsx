@@ -50,6 +50,8 @@ export const AdminDashboard: React.FC = () => {
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDescription, setNewTeamDescription] = useState('');
   const [newTeamColor, setNewTeamColor] = useState('#2563EB');
+  const [teamFormError, setTeamFormError] = useState<string | null>(null);
+  const [isTeamSubmitting, setIsTeamSubmitting] = useState(false);
 
   // Filtered Users
   const filteredUsers = useMemo(() => {
@@ -114,6 +116,8 @@ export const AdminDashboard: React.FC = () => {
   const handleCreateTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeamName.trim()) return;
+    setTeamFormError(null);
+    setIsTeamSubmitting(true);
 
     try {
       await createTeam({
@@ -126,8 +130,11 @@ export const AdminDashboard: React.FC = () => {
       setNewTeamName('');
       setNewTeamDescription('');
       setIsCreateTeamOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create team:', err);
+      setTeamFormError(err instanceof Error ? err.message : 'Failed to create team');
+    } finally {
+      setIsTeamSubmitting(false);
     }
   };
 
@@ -587,6 +594,12 @@ export const AdminDashboard: React.FC = () => {
       {/* Modal: Create Team */}
       <Modal isOpen={isCreateTeamOpen} onClose={() => setIsCreateTeamOpen(false)} title="Create Project Team" size="md">
         <form onSubmit={handleCreateTeamSubmit} className="space-y-4 py-2">
+          {teamFormError && (
+            <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+              {teamFormError}
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">Team Name *</label>
             <input
@@ -633,9 +646,10 @@ export const AdminDashboard: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer"
+              disabled={isTeamSubmitting}
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm cursor-pointer disabled:opacity-50"
             >
-              Create Team
+              {isTeamSubmitting ? 'Creating...' : 'Create Team'}
             </button>
           </div>
         </form>

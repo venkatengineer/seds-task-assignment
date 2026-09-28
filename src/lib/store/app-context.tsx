@@ -83,8 +83,7 @@ interface AppContextType {
     targetMemberIds?: string[];
   }) => Promise<void>;
 
-  // Admin user & team operations
-  createUser: (data: { full_name: string; email: string; role: UserRole; team_id: string | null; title?: string }) => Promise<Profile>;
+  createUser: (data: { full_name: string; email: string; role: UserRole; team_id: string | null; title?: string; password?: string }) => Promise<Profile>;
   updateUser: (userId: string, updates: Partial<Profile>) => Promise<void>;
   suspendUser: (userId: string) => Promise<void>;
   activateUser: (userId: string) => Promise<void>;
@@ -1054,6 +1053,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     role: UserRole;
     team_id: string | null;
     title?: string;
+    password?: string;
   }): Promise<Profile> => {
     const res = await fetch('/api/admin/users', {
       method: 'POST',

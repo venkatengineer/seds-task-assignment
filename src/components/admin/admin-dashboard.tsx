@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/lib/store/app-context';
 import { Profile, Team, UserRole } from '@/types/database';
 import { Modal } from '@/components/ui/modal';
@@ -43,8 +43,17 @@ export const AdminDashboard: React.FC = () => {
   const [newRole, setNewRole] = useState<UserRole>('TEAM_MEMBER');
   const [newTeamId, setNewTeamId] = useState<string>(teams[0]?.id || '');
   const [newTitle, setNewTitle] = useState('');
+  const [newPassword, setNewPassword] = useState('Seds@2026');
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successNotification, setSuccessNotification] = useState<{ title: string; message: string; password?: string } | null>(null);
+
+  // Auto-sync team selection whenever teams load or change
+  useEffect(() => {
+    if (teams.length > 0 && !newTeamId) {
+      setNewTeamId(teams[0].id);
+    }
+  }, [teams, newTeamId]);
 
   // New Team Form State
   const [newTeamName, setNewTeamName] = useState('');
@@ -85,26 +94,40 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
-    if ((newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') && !newTeamId) {
-      setFormError('Team Members and Team Leads must be assigned to exactly one team.');
+    const effectiveTeamId = (newRole === 'OFFICE_BEARER' || newRole === 'ADMIN')
+      ? (newTeamId || null)
+      : (newTeamId || (teams.length > 0 ? teams[0].id : ''));
+
+    if ((newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') && !effectiveTeamId) {
+      setFormError('Team Members and Team Leads must be assigned to an active team. Please create a team first if none exist.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       setFormError(null);
+      const initialPass = newPassword.trim() || 'Seds@2026';
+
       await createUser({
         full_name: newName.trim(),
-        email: newEmail.trim(),
+        email: newEmail.trim().toLowerCase(),
         role: newRole,
-        team_id: (newRole === 'OFFICE_BEARER' || newRole === 'ADMIN') ? (newTeamId || null) : newTeamId,
+        team_id: effectiveTeamId,
         title: newTitle.trim() || undefined,
+        password: initialPass,
+      });
+
+      setSuccessNotification({
+        title: 'Member Account Provisioned Successfully!',
+        message: `${newName.trim()} (${newEmail.trim().toLowerCase()}) has been activated in the system.`,
+        password: initialPass,
       });
 
       // Reset
       setNewName('');
       setNewEmail('');
       setNewTitle('');
+      setNewPassword('Seds@2026');
       setIsCreateUserOpen(false);
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Failed to create user');
@@ -196,6 +219,7 @@ export const AdminDashboard: React.FC = () => {
           <button
             onClick={() => {
               setFormError(null);
+              setNewTeamId(teams[0]?.id || '');
               setIsCreateUserOpen(true);
             }}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
@@ -205,6 +229,30 @@ export const AdminDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Success Notification Banner */}
+      {successNotification && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start justify-between gap-3 text-xs text-emerald-900 animate-in fade-in">
+          <div className="space-y-1">
+            <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <span>{successNotification.title}</span>
+            </div>
+            <p>{successNotification.message}</p>
+            {successNotification.password && (
+              <p className="font-mono bg-white border border-emerald-200 px-2 py-1 rounded inline-block text-[11px] text-gray-800 mt-1">
+                Temporary Password: <span className="font-bold text-emerald-700">{successNotification.password}</span>
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setSuccessNotification(null)}
+            className="text-emerald-700 hover:text-emerald-900 text-xs font-semibold cursor-pointer px-1.5 py-0.5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* First-Run Experience */}
       {teams.length === 0 && (
@@ -547,7 +595,7 @@ export const AdminDashboard: React.FC = () => {
                 Assigned Team {(newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') && <span className="text-red-500">*</span>}
               </label>
               <select
-                value={newTeamId}
+                value={newTeamId || (teams[0]?.id || '')}
                 onChange={(e) => setNewTeamId(e.target.value)}
                 className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:border-blue-500 text-gray-900"
               >
@@ -570,6 +618,24 @@ export const AdminDashboard: React.FC = () => {
               placeholder="e.g. Propulsion Subsystems Engineer"
               className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:border-blue-500 text-gray-900"
             />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-gray-700">Initial Password *</label>
+              <span className="text-[10px] text-gray-400 font-mono">Default: Seds@2026</span>
+            </div>
+            <input
+              type="text"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="e.g. Seds@2026"
+              className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:border-blue-500 font-mono text-gray-900"
+            />
+            <p className="text-[10px] text-gray-500 mt-1">
+              The member will use this password to sign in at <span className="font-semibold text-blue-600">/login</span>. They can change it anytime via &quot;Forgot Password&quot;.
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">

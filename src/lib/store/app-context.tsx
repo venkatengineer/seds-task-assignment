@@ -379,7 +379,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
 
-      if (event === 'SIGNED_OUT' || !newSession?.user) {
+      if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         setCurrentUser(GUEST_PROFILE);
@@ -389,6 +389,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setNotifications([]);
         setIsLoading(false);
         router.replace('/login');
+      } else if (!newSession?.user) {
+        setSession(null);
+        setUser(null);
+        setCurrentUser(GUEST_PROFILE);
+        setIsSuspended(false);
+        setIsLoading(false);
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         setSession(newSession);
         setUser(newSession.user);
@@ -485,16 +491,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Auth Action: Sign In
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPassword = password.trim();
+
+      setIsLoading(true);
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
       });
 
       if (error) {
+        setIsLoading(false);
         return { error: error.message || 'Invalid email or password.' };
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
+        setSession(data.session);
+        setUser(data.user);
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -503,12 +518,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (profile?.account_status === 'SUSPENDED') {
           await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setCurrentUser(GUEST_PROFILE);
+          setIsLoading(false);
           return { error: 'Your SEDS account has been suspended. Please contact an administrator.' };
         }
+
+        if (profile) {
+          setCurrentUser(profile);
+          setIsSuspended(false);
+        } else {
+          const fallback: Profile = {
+            id: data.user.id,
+            full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+            email: cleanEmail,
+            avatar_url: null,
+            role: (data.user.user_metadata?.role as UserRole) || 'TEAM_MEMBER',
+            team_id: null,
+            title: 'SEDS Member',
+            account_status: 'ACTIVE',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          setCurrentUser(fallback);
+          setIsSuspended(false);
+        }
+
+        await fetchAllData(data.user.id);
+        setIsLoading(false);
+        return {};
       }
 
-      return {};
+      setIsLoading(false);
+      return { error: 'Failed to establish session. Please try again.' };
     } catch (err: any) {
+      setIsLoading(false);
       return { error: err.message || 'Authentication failed. Please try again.' };
     }
   };

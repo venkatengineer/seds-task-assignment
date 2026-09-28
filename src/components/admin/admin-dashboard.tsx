@@ -106,6 +106,16 @@ export const AdminDashboard: React.FC = () => {
     try {
       setIsSubmitting(true);
       setFormError(null);
+      const cleanEmail = newEmail.trim().toLowerCase();
+
+      // Check if user already exists
+      const existing = allProfiles.find(p => p.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        setFormError(`${existing.full_name} (${existing.email}) is already registered as ${existing.role.replace('_', ' ')}. They can sign in directly at /login.`);
+        setIsSubmitting(false);
+        return;
+      }
+
       const initialPass = newPassword.trim() || 'Seds@2026';
 
       await createUser({
@@ -545,9 +555,16 @@ export const AdminDashboard: React.FC = () => {
       <Modal isOpen={isCreateUserOpen} onClose={() => setIsCreateUserOpen(false)} title="Provision SEDS Member" size="md">
         <form onSubmit={handleCreateUser} className="space-y-4 py-2">
           {formError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-lg flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{formError}</span>
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-lg flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-semibold block">{formError}</span>
+                {formError.includes('SUPABASE_SERVICE_ROLE_KEY') && (
+                  <p className="text-[11px] text-red-600 mt-1 leading-relaxed">
+                    <strong>Resolution:</strong> In your Vercel Project Settings &gt; Environment Variables, add <code className="bg-red-100 font-mono px-1 py-0.5 rounded">SUPABASE_SERVICE_ROLE_KEY</code> and redeploy.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export const AnalyticsView: React.FC = () => {
-  const { currentUser, teams, tasks, allProfiles } = useApp();
+  const { currentUser, teams, tasks, sprints, allProfiles } = useApp();
 
   const isOfficeBearer = Permissions.isOfficeBearer(currentUser);
 
@@ -35,8 +35,33 @@ export const AnalyticsView: React.FC = () => {
     });
   }, [tasks, selectedTeamId, currentUser]);
 
-  // Overall counts
-  const totalTasks = relevantTasks.length || 1;
+  // Filter sprints based on selection and user permissions
+  const relevantSprints = useMemo(() => {
+    return sprints.filter(s => {
+      if (selectedTeamId !== 'ALL' && s.team_id !== selectedTeamId) {
+        return false;
+      }
+      if (currentUser.role === 'TEAM_MEMBER') {
+        return s.team_id === currentUser.team_id;
+      }
+      return true;
+    });
+  }, [sprints, selectedTeamId, currentUser]);
+
+  // Selected sprint for Burndown tracking
+  const [selectedSprintId, setSelectedSprintId] = useState<string>('');
+
+  const currentSprint = useMemo(() => {
+    if (selectedSprintId) {
+      const match = relevantSprints.find(s => s.id === selectedSprintId);
+      if (match) return match;
+    }
+    // Default to active sprint, or first available sprint
+    return relevantSprints.find(s => s.status === 'ACTIVE') || relevantSprints[0] || null;
+  }, [relevantSprints, selectedSprintId]);
+
+  // Overall counts (computed strictly from real tasks)
+  const totalTasksCount = relevantTasks.length;
   const completedTasks = relevantTasks.filter(t => t.status === 'COMPLETED').length;
   const inProgressTasks = relevantTasks.filter(t => t.status === 'IN_PROGRESS').length;
   const inReviewTasks = relevantTasks.filter(t => t.status === 'IN_REVIEW').length;
@@ -47,12 +72,12 @@ export const AnalyticsView: React.FC = () => {
   const todayStr = new Date().toISOString().split('T')[0];
   const overdueTasks = relevantTasks.filter(t => t.due_date && t.due_date < todayStr && t.status !== 'COMPLETED').length;
   
-  const completionPercentage = Math.round((completedTasks / totalTasks) * 100);
+  const completionPercentage = totalTasksCount > 0 ? Math.round((completedTasks / totalTasksCount) * 100) : 0;
 
-  const totalPoints = relevantTasks.reduce((acc, t) => acc + t.story_points, 0);
+  const totalPoints = relevantTasks.reduce((acc, t) => acc + (t.story_points || 0), 0);
   const completedPoints = relevantTasks
     .filter(t => t.status === 'COMPLETED')
-    .reduce((acc, t) => acc + t.story_points, 0);
+    .reduce((acc, t) => acc + (t.story_points || 0), 0);
 
   // Task Status Distribution Chart Data
   const statusData = [
@@ -64,19 +89,58 @@ export const AnalyticsView: React.FC = () => {
     { name: 'Backlog', count: backlogTasks, fill: '#9CA3AF' },
   ];
 
-  // Burndown Chart Simulation Data (14-day sprint trajectory)
-  const burndownData = [
-    { day: 'Day 1', ideal: 26, actual: 26 },
-    { day: 'Day 3', ideal: 22, actual: 26 },
-    { day: 'Day 5', ideal: 18, actual: 23 },
-    { day: 'Day 7', ideal: 15, actual: 20 },
-    { day: 'Day 9', ideal: 11, actual: 15 },
-    { day: 'Day 11', ideal: 7, actual: 11 },
-    { day: 'Day 13', ideal: 4, actual: 8 },
-    { day: 'Day 14', ideal: 0, actual: null },
-  ];
+  // Real Burndown Chart Calculation derived from actual sprint tasks and completion dates
+  const burndownData = useMemo(() => {
+    if (!currentSprint) return [];
 
-  // Workload by Member Data
+    const sprintTasks = tasks.filter(t => t.sprint_id === currentSprint.id);
+    const sprintTotalPoints = sprintTasks.reduce((acc, t) => acc + (t.story_points || 0), 0);
+
+    if (sprintTotalPoints === 0 && sprintTasks.length === 0) {
+      return [];
+    }
+
+    const startDate = new Date(currentSprint.start_date);
+    const endDate = new Date(currentSprint.end_date);
+    const now = new Date();
+
+    const diffDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const stepCount = Math.min(diffDays + 1, 8); // At most 8 checkpoints for clear rendering
+
+    const result: { day: string; ideal: number; actual: number | null }[] = [];
+
+    for (let i = 0; i < stepCount; i++) {
+      const fraction = i / (stepCount - 1);
+      const dayOffset = Math.round(fraction * diffDays);
+      const pointDate = new Date(startDate.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+
+      const dayLabel = i === 0 ? 'Start' : (i === stepCount - 1 ? 'End' : `Day ${dayOffset}`);
+      const idealBurn = Math.max(0, Math.round(sprintTotalPoints * (1 - fraction)));
+
+      // If checkpoint is in future for an active sprint, actual line is null
+      if (pointDate > now && i > 0 && currentSprint.status === 'ACTIVE') {
+        result.push({
+          day: dayLabel,
+          ideal: idealBurn,
+          actual: null,
+        });
+      } else {
+        const completedPointsOnOrBefore = sprintTasks
+          .filter(t => t.status === 'COMPLETED' && new Date(t.updated_at) <= pointDate)
+          .reduce((sum, t) => sum + (t.story_points || 0), 0);
+
+        result.push({
+          day: dayLabel,
+          ideal: idealBurn,
+          actual: Math.max(0, sprintTotalPoints - completedPointsOnOrBefore),
+        });
+      }
+    }
+
+    return result;
+  }, [currentSprint, tasks]);
+
+  // Workload by Member Data (derived strictly from real assigned tasks)
   const teamEngineers = useMemo(() => {
     return allProfiles.filter(p => {
       if (selectedTeamId !== 'ALL') return p.team_id === selectedTeamId;
@@ -85,15 +149,17 @@ export const AnalyticsView: React.FC = () => {
   }, [allProfiles, selectedTeamId]);
 
   const workloadData = useMemo(() => {
-    return teamEngineers.map(member => {
-      const assigned = relevantTasks.filter(t => t.assignee_ids.includes(member.id));
-      const points = assigned.reduce((acc, t) => acc + t.story_points, 0);
-      return {
-        name: member.full_name.split(' ')[0],
-        tasks: assigned.length,
-        points: points,
-      };
-    }).slice(0, 8);
+    return teamEngineers
+      .map(member => {
+        const assigned = relevantTasks.filter(t => t.assignee_ids.includes(member.id));
+        const points = assigned.reduce((acc, t) => acc + (t.story_points || 0), 0);
+        return {
+          name: member.full_name.split(' ')[0],
+          tasks: assigned.length,
+          points: points,
+        };
+      })
+      .slice(0, 8);
   }, [teamEngineers, relevantTasks]);
 
   return (
@@ -110,7 +176,7 @@ export const AnalyticsView: React.FC = () => {
             SEDS Analytics & Metrics
           </h1>
           <p className="text-xs text-gray-500 mt-1">
-            Sprint burn rates, task distribution models, and team delivery velocity.
+            Real sprint burn rates, task distribution models, and team delivery velocity.
           </p>
         </div>
 
@@ -136,7 +202,7 @@ export const AnalyticsView: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
           <span className="text-[11px] font-mono text-gray-500 block uppercase font-medium">TOTAL TASKS</span>
-          <span className="text-2xl font-bold font-mono text-gray-900 mt-1 block">{relevantTasks.length}</span>
+          <span className="text-2xl font-bold font-mono text-gray-900 mt-1 block">{totalTasksCount}</span>
           <span className="text-[10px] text-gray-400 font-mono">Assigned & Backlog</span>
         </div>
 
@@ -175,50 +241,72 @@ export const AnalyticsView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sprint Burndown Chart */}
         <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
             <div>
               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                 <TrendingDown className="w-4 h-4 text-blue-600" />
                 <span>Sprint Burndown (Story Points)</span>
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Ideal linear burn line vs actual remaining points.
+                {currentSprint ? `Live burndown for ${currentSprint.name}` : 'Ideal linear burn line vs actual remaining points.'}
               </p>
             </div>
-            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              Active Sprint
-            </span>
+            {relevantSprints.length > 0 && (
+              <select
+                value={currentSprint?.id || ''}
+                onChange={(e) => setSelectedSprintId(e.target.value)}
+                className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 font-medium focus:outline-none focus:border-blue-500"
+              >
+                {relevantSprints.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.status})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={burndownData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="day" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-                <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="ideal"
-                  name="Ideal Burn"
-                  stroke="#9CA3AF"
-                  strokeDasharray="5 5"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="actual"
-                  name="Actual Remaining"
-                  stroke="#2563EB"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: '#2563EB' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {burndownData.length > 0 ? (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={burndownData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                  <XAxis dataKey="day" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                  <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="ideal"
+                    name="Ideal Burn"
+                    stroke="#9CA3AF"
+                    strokeDasharray="5 5"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="actual"
+                    name="Actual Remaining"
+                    stroke="#2563EB"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#2563EB' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+              <TrendingDown className="w-8 h-8 text-gray-300 mb-2" />
+              <p className="text-xs font-semibold text-gray-700">No Sprint Burndown Data</p>
+              <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+                {relevantSprints.length === 0 
+                  ? 'No sprints found for this team. Create a sprint in Sprint Management to view live burndown metrics.'
+                  : 'No tasks with story points assigned to this sprint yet.'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Task Status Distribution Bar Chart */}
@@ -235,23 +323,33 @@ export const AnalyticsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="name" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-                <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
-                />
-                <Bar dataKey="count" name="Tasks" radius={[4, 4, 0, 0]}>
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {totalTasksCount > 0 ? (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                  <XAxis dataKey="name" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                  <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                  />
+                  <Bar dataKey="count" name="Tasks" radius={[4, 4, 0, 0]}>
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+              <BarChart3 className="w-8 h-8 text-gray-300 mb-2" />
+              <p className="text-xs font-semibold text-gray-700">No Tasks Recorded</p>
+              <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+                Tasks created and tracked in sprints will display their status distribution here.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -269,19 +367,29 @@ export const AnalyticsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="h-60 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={workloadData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-              <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-              <YAxis dataKey="name" type="category" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} width={80} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
-              />
-              <Bar dataKey="points" name="Story Points" fill="#3B82F6" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {workloadData.length > 0 && workloadData.some(m => m.points > 0 || m.tasks > 0) ? (
+          <div className="h-60 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={workloadData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} width={80} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                />
+                <Bar dataKey="points" name="Story Points" fill="#3B82F6" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-60 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+            <Zap className="w-8 h-8 text-gray-300 mb-2" />
+            <p className="text-xs font-semibold text-gray-700">No Workload Assigned</p>
+            <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+              Assign tasks with story points to engineers to see capacity and workload distribution.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

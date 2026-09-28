@@ -3,7 +3,7 @@
 -- ==============================================================================
 -- To bootstrap the initial SEDS Administrator safely:
 -- 1. Create an admin user in Supabase Auth (via Supabase Studio -> Authentication -> Add User)
--- 2. Run:
+-- 2. Run in Supabase SQL Editor:
 --    SELECT public.seds_promote_to_admin('admin@sedsrec.org', 'Lead Administrator');
 --
 -- After the first admin exists, all subsequent users and team leads must be provisioned
@@ -27,3 +27,5 @@ BEGIN
   SET role = 'ADMIN', account_status = 'ACTIVE', updated_at = NOW();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.seds_promote_to_admin(TEXT, TEXT) TO postgres, service_role;

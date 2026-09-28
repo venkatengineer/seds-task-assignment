@@ -39,9 +39,11 @@ BEGIN
 END $$;
 
 -- 4. Expanded Notifications Table
+-- Ensure notifications table exists
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  recipient_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  recipient_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   sender_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   type TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -51,10 +53,65 @@ CREATE TABLE IF NOT EXISTS notifications (
   related_sprint_id UUID REFERENCES sprints(id) ON DELETE SET NULL,
   related_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   link TEXT,
+  action_url TEXT,
+  read BOOLEAN NOT NULL DEFAULT false,
   is_read BOOLEAN NOT NULL DEFAULT false,
+  read_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- In case notifications table was already created by Migration 00001, alter columns safely:
+ALTER TABLE notifications 
+  ADD COLUMN IF NOT EXISTS recipient_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS sender_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS priority notification_priority NOT NULL DEFAULT 'INFO',
+  ADD COLUMN IF NOT EXISTS related_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS related_sprint_id UUID REFERENCES sprints(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS related_team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS action_url TEXT,
+  ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
+
+-- Drop NOT NULL constraints from 00001 if they exist so either recipient_id or user_id works
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'user_id') THEN
+    ALTER TABLE notifications ALTER COLUMN user_id DROP NOT NULL;
+    UPDATE notifications SET recipient_id = user_id WHERE recipient_id IS NULL AND user_id IS NOT NULL;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'read') THEN
+    ALTER TABLE notifications ALTER COLUMN read DROP NOT NULL;
+    UPDATE notifications SET is_read = read WHERE is_read IS FALSE AND read IS TRUE;
+  END IF;
+END $$;
+
+-- Synchronization trigger to guarantee recipient_id & user_id, is_read & read remain identical
+CREATE OR REPLACE FUNCTION sync_notifications_columns()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.recipient_id IS NULL AND NEW.user_id IS NOT NULL THEN
+    NEW.recipient_id := NEW.user_id;
+  ELSIF NEW.user_id IS NULL AND NEW.recipient_id IS NOT NULL THEN
+    NEW.user_id := NEW.recipient_id;
+  END IF;
+
+  IF NEW.is_read IS NOT NULL THEN
+    NEW.read := NEW.is_read;
+  ELSIF NEW.read IS NOT NULL THEN
+    NEW.is_read := NEW.read;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_notifications ON notifications;
+CREATE TRIGGER trg_sync_notifications
+BEFORE INSERT OR UPDATE ON notifications
+FOR EACH ROW EXECUTE FUNCTION sync_notifications_columns();
+
+-- Indices on notifications
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(recipient_id, is_read);
 
@@ -78,35 +135,58 @@ ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 
--- Push Subscriptions RLS: users manage only their own devices
+-- Push Subscriptions RLS
+DROP POLICY IF EXISTS "Users manage own push subscriptions" ON push_subscriptions;
 CREATE POLICY "Users manage own push subscriptions"
 ON push_subscriptions FOR ALL
+TO authenticated
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
--- Notifications RLS: recipients can read their own notifications
+-- Clean up any existing notifications policies to avoid conflicts
+DROP POLICY IF EXISTS "Notifications private to recipient" ON notifications;
+DROP POLICY IF EXISTS "Users read own notifications" ON notifications;
+DROP POLICY IF EXISTS "Users update own notifications read status" ON notifications;
+DROP POLICY IF EXISTS "Authorized senders create notifications" ON notifications;
+DROP POLICY IF EXISTS "Users create notifications" ON notifications;
+DROP POLICY IF EXISTS "Users delete own notifications" ON notifications;
+
+-- Notifications RLS
 CREATE POLICY "Users read own notifications"
 ON notifications FOR SELECT
-USING (auth.uid() = recipient_id);
+TO authenticated
+USING (auth.uid() = recipient_id OR auth.uid() = user_id);
 
 CREATE POLICY "Users update own notifications read status"
 ON notifications FOR UPDATE
-USING (auth.uid() = recipient_id)
-WITH CHECK (auth.uid() = recipient_id);
+TO authenticated
+USING (auth.uid() = recipient_id OR auth.uid() = user_id)
+WITH CHECK (auth.uid() = recipient_id OR auth.uid() = user_id);
 
--- Notification Preferences RLS: users manage their own preferences
+CREATE POLICY "Users delete own notifications"
+ON notifications FOR DELETE
+TO authenticated
+USING (auth.uid() = recipient_id OR auth.uid() = user_id);
+
+CREATE POLICY "Users create notifications"
+ON notifications FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- Notification Preferences RLS
+DROP POLICY IF EXISTS "Users manage own notification preferences" ON notification_preferences;
 CREATE POLICY "Users manage own notification preferences"
 ON notification_preferences FOR ALL
+TO authenticated
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
--- Admin & System notification sender policies
-CREATE POLICY "Authorized senders create notifications"
-ON notifications FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() 
-    AND role IN ('OFFICE_BEARER', 'TEAM_LEAD', 'ADMIN')
-  )
-);
+-- 7. Add new tables to Realtime Publication if available
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE push_subscriptions, notification_preferences;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;

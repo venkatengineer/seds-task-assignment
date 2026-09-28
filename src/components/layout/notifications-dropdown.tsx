@@ -11,7 +11,7 @@ export const NotificationsDropdown: React.FC = () => {
   const { notifications, currentUser, unreadNotificationCount, markNotificationRead, markAllNotificationsRead } = useApp();
   const [isOpen, setIsOpen] = useState(false);
 
-  const userNotifications = notifications.filter(n => n.user_id === currentUser.id);
+  const userNotifications = notifications.filter(n => (n.recipient_id === currentUser.id || n.user_id === currentUser.id));
 
   const handleNotificationClick = (id: string, link?: string) => {
     markNotificationRead(id);

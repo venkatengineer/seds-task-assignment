@@ -74,6 +74,12 @@ export interface TaskAssignee {
   profile?: Profile;
 }
 
+export type TaskAssignmentType = 'DIRECT' | 'OPEN';
+
+export type OpenTaskStatus = 'DRAFT' | 'PUBLISHED' | 'ASSIGNED' | 'CANCELLED' | 'EXPIRED';
+
+export type InterestStatus = 'INTERESTED' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+
 export interface Task {
   id: string;
   team_id: string;
@@ -87,6 +93,13 @@ export interface Task {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Open Task auction attributes
+  assignment_type: TaskAssignmentType;
+  open_task_status?: OpenTaskStatus | null;
+  max_assignees?: number;
+  requires_approval?: boolean;
+  skills?: string[];
+  interested_count?: number;
   // Augmented/Joined properties
   team_name?: string;
   sprint_name?: string;
@@ -94,6 +107,18 @@ export interface Task {
   assignee_ids: string[];
   comments_count: number;
   creator?: Profile;
+}
+
+export interface OpenTaskInterest {
+  id: string;
+  task_id: string;
+  user_id: string;
+  message: string;
+  status: InterestStatus;
+  created_at: string;
+  updated_at: string;
+  user?: Profile;
+  task?: Task;
 }
 
 export interface TaskComment {
@@ -125,7 +150,12 @@ export interface ActivityLog {
     | 'comment_added'
     | 'member_added'
     | 'member_removed'
-    | 'announcement_posted';
+    | 'announcement_posted'
+    | 'open_task_published'
+    | 'interest_expressed'
+    | 'interest_approved'
+    | 'interest_rejected'
+    | 'interest_withdrawn';
   metadata: Record<string, unknown>;
   created_at: string;
   actor?: Profile;
@@ -165,7 +195,15 @@ export interface NotificationItem {
   user_id: string;
   title: string;
   message: string;
-  type: 'task_assigned' | 'task_status_changed' | 'sprint_update' | 'announcement' | 'comment';
+  type: 
+    | 'task_assigned' 
+    | 'task_status_changed' 
+    | 'sprint_update' 
+    | 'announcement' 
+    | 'comment'
+    | 'open_task_interest'
+    | 'open_task_approved'
+    | 'open_task_rejected';
   link?: string;
   read: boolean;
   created_at: string;

@@ -5,7 +5,7 @@ import { useApp } from '@/lib/store/app-context';
 import { Permissions } from '@/lib/permissions';
 import { 
   Search, CheckSquare, Users, Flag, Sparkles, 
-  ArrowRight, Rocket, Radio, Hash, CornerDownLeft
+  ArrowRight, Rocket, Radio, Hash, CornerDownLeft, Compass
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { TaskStatusBadge } from '@/components/ui/badges';
@@ -33,7 +33,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onSelectTask,
 }) => {
   const router = useRouter();
-  const { currentUser, visibleTasks, teams, sprints, allProfiles } = useApp();
+  const { currentUser, visibleTasks, openTasks, teams, sprints, allProfiles } = useApp();
   const [query, setQuery] = useState('');
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       const actions: CommandItem[] = [
         { id: 'act-dash', type: 'page', title: 'Go to Command Center Overview', path: '/dashboard', icon: Sparkles },
         { id: 'act-tasks', type: 'page', title: 'View My Tasks & Board', path: '/tasks', icon: CheckSquare },
+        { id: 'act-opentasks', type: 'page', title: 'Open Tasks Auction & Staffing', path: '/open-tasks', icon: Compass },
         { id: 'act-sprint', type: 'page', title: 'Open Active Sprint', path: '/sprints', icon: Flag },
         { id: 'act-comm', type: 'page', title: 'Open Communication & Announcements', path: '/communication', icon: Radio },
         { id: 'act-analytics', type: 'page', title: 'View Analytics & Burndown', path: '/analytics', icon: Hash },
@@ -82,6 +83,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           badge: <TaskStatusBadge status={task.status} size="sm" />,
           icon: CheckSquare,
         });
+      }
+    });
+
+    // Search Open Tasks
+    openTasks.forEach(task => {
+      if (
+        task.title.toLowerCase().includes(q) ||
+        task.description.toLowerCase().includes(q) ||
+        (task.skills || []).some(s => s.toLowerCase().includes(q))
+      ) {
+        if (!results.some(r => r.taskId === task.id)) {
+          results.push({
+            id: `opentask-${task.id}`,
+            type: 'task',
+            title: `[Open Task] ${task.title}`,
+            subtitle: `${task.team_name} • ${task.skills?.join(', ') || 'Voluntary'}`,
+            path: '/open-tasks',
+            icon: Compass,
+          });
+        }
       }
     });
 
@@ -136,7 +157,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
 
     return results.slice(0, 10);
-  }, [query, visibleTasks, teams, sprints, allProfiles, currentUser]);
+  }, [query, visibleTasks, openTasks, teams, sprints, allProfiles, currentUser]);
 
   const handleSelect = (item: any) => {
     onClose();

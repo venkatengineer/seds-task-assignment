@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Profile, Team, Sprint, Task, TaskComment, Announcement, 
-  ActivityLog, NotificationItem, LeadMessage, TaskStatus, TaskPriority 
+  ActivityLog, NotificationItem, LeadMessage, TaskStatus, TaskPriority,
+  TaskAssignmentType, OpenTaskStatus, OpenTaskInterest
 } from '@/types/database';
 import { 
   SEED_TEAMS, SEED_PROFILES, SEED_SPRINTS, SEED_TASKS, 
   SEED_COMMENTS, SEED_ANNOUNCEMENTS, SEED_ACTIVITY_LOGS, 
-  SEED_NOTIFICATIONS, SEED_LEAD_MESSAGES 
+  SEED_NOTIFICATIONS, SEED_LEAD_MESSAGES, SEED_OPEN_TASK_INTERESTS
 } from './seed-data';
 import { Permissions } from '@/lib/permissions';
 
@@ -19,6 +20,8 @@ interface AppContextType {
   sprints: Sprint[];
   tasks: Task[];
   visibleTasks: Task[];
+  openTasks: Task[];
+  openTaskInterests: OpenTaskInterest[];
   comments: TaskComment[];
   announcements: Announcement[];
   activityLogs: ActivityLog[];
@@ -40,13 +43,24 @@ interface AppContextType {
     priority: TaskPriority;
     due_date?: string | null;
     story_points: number;
-    assignee_ids: string[];
+    assignee_ids?: string[];
     status?: TaskStatus;
+    assignment_type?: TaskAssignmentType;
+    open_task_status?: OpenTaskStatus;
+    max_assignees?: number;
+    requires_approval?: boolean;
+    skills?: string[];
   }) => Task;
   updateTask: (taskId: string, updates: Partial<Task>) => void;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   deleteTask: (taskId: string) => void;
   moveTaskToSprint: (taskId: string, sprintId: string | null) => void;
+
+  // Open Task operations
+  expressInterest: (taskId: string, message: string) => void;
+  withdrawInterest: (taskId: string) => void;
+  approveInterest: (interestId: string) => void;
+  rejectInterest: (interestId: string) => void;
   
   // Sprint operations
   createSprint: (data: {
@@ -136,6 +150,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => loadStored<ActivityLog[]>('activities', SEED_ACTIVITY_LOGS));
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => loadStored<NotificationItem[]>('notifications', SEED_NOTIFICATIONS));
   const [leadMessages, setLeadMessages] = useState<LeadMessage[]>(() => loadStored<LeadMessage[]>('lead_messages', SEED_LEAD_MESSAGES));
+  const [openTaskInterests, setOpenTaskInterests] = useState<OpenTaskInterest[]>(() => 
+    loadStored<OpenTaskInterest[]>('open_task_interests', SEED_OPEN_TASK_INTERESTS)
+  );
 
   // Sync state changes to localStorage
   useEffect(() => saveStored('current_user_id', currentUserId), [currentUserId]);
@@ -147,6 +164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => saveStored('activities', activityLogs), [activityLogs]);
   useEffect(() => saveStored('notifications', notifications), [notifications]);
   useEffect(() => saveStored('lead_messages', leadMessages), [leadMessages]);
+  useEffect(() => saveStored('open_task_interests', openTaskInterests), [openTaskInterests]);
 
   const currentUser = useMemo(() => {
     const found = profiles.find(p => p.id === currentUserId);
@@ -164,7 +182,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [profiles]);
 
-  // Tasks visible to the current user strictly matching role permissions
+  // Tasks visible to the current user strictly matching role permissions (Kanban / My Tasks)
   const visibleTasks = useMemo(() => {
     if (currentUser.role === 'OFFICE_BEARER') {
       return tasks;
@@ -174,6 +192,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     // TEAM_MEMBER: Only assigned tasks or collaborative tasks
     return tasks.filter(t => t.assignee_ids.includes(currentUser.id));
+  }, [currentUser, tasks]);
+
+  // Open Tasks discovery list based on permissions
+  const openTasks = useMemo(() => {
+    if (currentUser.role === 'OFFICE_BEARER') {
+      return tasks.filter(t => t.assignment_type === 'OPEN');
+    }
+    if (currentUser.role === 'TEAM_LEAD') {
+      return tasks.filter(t => t.assignment_type === 'OPEN' && t.team_id === currentUser.team_id);
+    }
+    // TEAM_MEMBER: Only published open tasks of their team
+    return tasks.filter(t => t.assignment_type === 'OPEN' && t.team_id === currentUser.team_id && t.open_task_status === 'PUBLISHED');
   }, [currentUser, tasks]);
 
   const unreadNotificationCount = useMemo(() => {
@@ -189,17 +219,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     priority: TaskPriority;
     due_date?: string | null;
     story_points: number;
-    assignee_ids: string[];
+    assignee_ids?: string[];
     status?: TaskStatus;
+    assignment_type?: TaskAssignmentType;
+    open_task_status?: OpenTaskStatus;
+    max_assignees?: number;
+    requires_approval?: boolean;
+    skills?: string[];
   }): Task => {
     if (!Permissions.canCreateTask(currentUser, data.team_id)) {
       throw new Error('Unauthorized to create task for this team');
     }
 
     const taskId = crypto.randomUUID ? crypto.randomUUID() : `task-${Date.now()}`;
-    const assignees = profiles.filter(p => data.assignee_ids.includes(p.id));
+    const assigneeIds = data.assignee_ids || [];
+    const assignees = profiles.filter(p => assigneeIds.includes(p.id));
     const team = teams.find(t => t.id === data.team_id);
     const sprint = sprints.find(s => s.id === data.sprint_id);
+    const isOpen = data.assignment_type === 'OPEN';
 
     const newTask: Task = {
       id: taskId,
@@ -216,10 +253,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updated_at: new Date().toISOString(),
       team_name: team?.name || 'Unknown Team',
       sprint_name: sprint?.name,
-      assignee_ids: data.assignee_ids,
+      assignee_ids: assigneeIds,
       assignees,
       comments_count: 0,
       creator: currentUser,
+      assignment_type: data.assignment_type || 'DIRECT',
+      open_task_status: isOpen ? (data.open_task_status || 'PUBLISHED') : null,
+      max_assignees: isOpen ? (data.max_assignees || 1) : 1,
+      requires_approval: isOpen ? (data.requires_approval ?? true) : false,
+      skills: isOpen ? (data.skills || []) : [],
+      interested_count: 0,
     };
 
     setTasks(prev => [newTask, ...prev]);
@@ -231,8 +274,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       team_id: data.team_id,
       task_id: taskId,
       sprint_id: data.sprint_id || null,
-      action: 'task_created',
-      metadata: { title: data.title, points: data.story_points },
+      action: isOpen ? 'open_task_published' : 'task_created',
+      metadata: { title: data.title, points: data.story_points, type: newTask.assignment_type },
       created_at: new Date().toISOString(),
       actor: currentUser,
       task_title: data.title,
@@ -240,22 +283,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setActivityLogs(prev => [newActivity, ...prev]);
 
-    // Send notifications to assignees
-    data.assignee_ids.forEach(uid => {
-      if (uid !== currentUser.id) {
-        const notif: NotificationItem = {
-          id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${uid}`,
-          user_id: uid,
-          title: 'New Task Assigned',
-          message: `${currentUser.full_name} assigned you to "${data.title}"`,
-          type: 'task_assigned',
-          link: `/tasks/${taskId}`,
-          read: false,
-          created_at: new Date().toISOString(),
-        };
-        setNotifications(prev => [notif, ...prev]);
-      }
-    });
+    // Send notifications
+    if (isOpen) {
+      profiles
+        .filter(p => p.team_id === data.team_id && p.role === 'TEAM_MEMBER')
+        .forEach(m => {
+          const notif: NotificationItem = {
+            id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${m.id}`,
+            user_id: m.id,
+            title: 'New Open Task Available',
+            message: `New open task "${data.title}" posted for ${team?.name || 'your team'}. Express interest now!`,
+            type: 'open_task_interest',
+            link: '/open-tasks',
+            read: false,
+            created_at: new Date().toISOString(),
+          };
+          setNotifications(prev => [notif, ...prev]);
+        });
+    } else {
+      assigneeIds.forEach(uid => {
+        if (uid !== currentUser.id) {
+          const notif: NotificationItem = {
+            id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${uid}`,
+            user_id: uid,
+            title: 'New Task Assigned',
+            message: `${currentUser.full_name} assigned you to "${data.title}"`,
+            type: 'task_assigned',
+            link: `/tasks/${taskId}`,
+            read: false,
+            created_at: new Date().toISOString(),
+          };
+          setNotifications(prev => [notif, ...prev]);
+        }
+      });
+    }
 
     return newTask;
   }, [currentUser, profiles, teams, sprints]);
@@ -342,6 +403,279 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } : t);
     });
   }, [currentUser, sprints]);
+
+  // Open Task Operations
+  const expressInterest = useCallback((taskId: string, message: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    if (!Permissions.canExpressInterest(currentUser, task)) {
+      console.warn('Unauthorized or ineligible to express interest');
+      return;
+    }
+
+    // Check if auto-claim is allowed (requires_approval === false)
+    if (task.requires_approval === false) {
+      const updatedAssigneeIds = [...task.assignee_ids, currentUser.id];
+      const isFull = updatedAssigneeIds.length >= (task.max_assignees || 1);
+
+      setTasks(prev => prev.map(t => {
+        if (t.id !== taskId) return t;
+        return {
+          ...t,
+          assignee_ids: updatedAssigneeIds,
+          assignees: [...t.assignees, currentUser],
+          open_task_status: isFull ? 'ASSIGNED' : t.open_task_status,
+          status: t.status === 'BACKLOG' ? 'TODO' : t.status,
+          updated_at: new Date().toISOString(),
+        };
+      }));
+
+      const interestId = crypto.randomUUID ? crypto.randomUUID() : `interest-${Date.now()}`;
+      const newInterest: OpenTaskInterest = {
+        id: interestId,
+        task_id: taskId,
+        user_id: currentUser.id,
+        message: message || 'Claimed directly (no lead approval required)',
+        status: 'APPROVED',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user: currentUser,
+        task,
+      };
+      setOpenTaskInterests(prev => [newInterest, ...prev.filter(i => !(i.task_id === taskId && i.user_id === currentUser.id))]);
+
+      const memberNotif: NotificationItem = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}`,
+        user_id: currentUser.id,
+        title: 'Task Claimed Successfully',
+        message: `You claimed "${task.title}". It has been added to your tasks.`,
+        type: 'open_task_approved',
+        link: `/tasks/${taskId}`,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications(prev => [memberNotif, ...prev]);
+      return;
+    }
+
+    // Requires approval: Record interest
+    const interestId = crypto.randomUUID ? crypto.randomUUID() : `interest-${Date.now()}`;
+    const newInterest: OpenTaskInterest = {
+      id: interestId,
+      task_id: taskId,
+      user_id: currentUser.id,
+      message,
+      status: 'INTERESTED',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user: currentUser,
+      task,
+    };
+
+    setOpenTaskInterests(prev => {
+      const filtered = prev.filter(i => !(i.task_id === taskId && i.user_id === currentUser.id));
+      return [newInterest, ...filtered];
+    });
+
+    // Update interested count on task
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      return {
+        ...t,
+        interested_count: (t.interested_count || 0) + 1,
+        updated_at: new Date().toISOString(),
+      };
+    }));
+
+    // Activity log
+    const act: ActivityLog = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+      actor_id: currentUser.id,
+      team_id: task.team_id,
+      task_id: taskId,
+      sprint_id: task.sprint_id,
+      action: 'interest_expressed',
+      metadata: { task_title: task.title, message },
+      created_at: new Date().toISOString(),
+      actor: currentUser,
+      task_title: task.title,
+      team_name: task.team_name,
+    };
+    setActivityLogs(prev => [act, ...prev]);
+
+    // Notify Team Leads & Office Bearers
+    const leads = profiles.filter(p => 
+      (p.role === 'TEAM_LEAD' && p.team_id === task.team_id) || p.role === 'OFFICE_BEARER'
+    );
+    leads.forEach(lead => {
+      const notif: NotificationItem = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${lead.id}`,
+        user_id: lead.id,
+        title: 'New Open Task Applicant',
+        message: `${currentUser.full_name} expressed interest in "${task.title}": "${message}"`,
+        type: 'open_task_interest',
+        link: '/open-tasks',
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications(prev => [notif, ...prev]);
+    });
+  }, [currentUser, tasks, profiles]);
+
+  const withdrawInterest = useCallback((taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    setOpenTaskInterests(prev => prev.map(i => {
+      if (i.task_id === taskId && i.user_id === currentUser.id && i.status === 'INTERESTED') {
+        return {
+          ...i,
+          status: 'WITHDRAWN',
+          updated_at: new Date().toISOString(),
+        };
+      }
+      return i;
+    }));
+
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      return {
+        ...t,
+        interested_count: Math.max(0, (t.interested_count || 1) - 1),
+        updated_at: new Date().toISOString(),
+      };
+    }));
+
+    if (task) {
+      const act: ActivityLog = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+        actor_id: currentUser.id,
+        team_id: task.team_id,
+        task_id: taskId,
+        sprint_id: task.sprint_id,
+        action: 'interest_withdrawn',
+        metadata: { task_title: task.title },
+        created_at: new Date().toISOString(),
+        actor: currentUser,
+        task_title: task.title,
+        team_name: task.team_name,
+      };
+      setActivityLogs(prev => [act, ...prev]);
+    }
+  }, [currentUser, tasks]);
+
+  const approveInterest = useCallback((interestId: string) => {
+    const interest = openTaskInterests.find(i => i.id === interestId);
+    if (!interest) return;
+    const task = tasks.find(t => t.id === interest.task_id);
+    if (!task) return;
+
+    if (!Permissions.canManageOpenTask(currentUser, task)) {
+      console.warn('Unauthorized to approve interest for this task');
+      return;
+    }
+
+    const applicant = profiles.find(p => p.id === interest.user_id);
+    if (!applicant) return;
+
+    // Update interest status
+    setOpenTaskInterests(prev => prev.map(i => 
+      i.id === interestId 
+        ? { ...i, status: 'APPROVED', updated_at: new Date().toISOString() } 
+        : i
+    ));
+
+    // Update task assignees and open_task_status
+    setTasks(prev => prev.map(t => {
+      if (t.id !== task.id) return t;
+      const alreadyAssigned = t.assignee_ids.includes(applicant.id);
+      const newAssigneeIds = alreadyAssigned ? t.assignee_ids : [...t.assignee_ids, applicant.id];
+      const newAssignees = alreadyAssigned ? t.assignees : [...t.assignees, applicant];
+      const isCapacityReached = newAssigneeIds.length >= (t.max_assignees || 1);
+
+      return {
+        ...t,
+        assignee_ids: newAssigneeIds,
+        assignees: newAssignees,
+        open_task_status: isCapacityReached ? 'ASSIGNED' : t.open_task_status,
+        status: t.status === 'BACKLOG' ? 'TODO' : t.status,
+        updated_at: new Date().toISOString(),
+      };
+    }));
+
+    // Activity log
+    const act: ActivityLog = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+      actor_id: currentUser.id,
+      team_id: task.team_id,
+      task_id: task.id,
+      sprint_id: task.sprint_id,
+      action: 'interest_approved',
+      metadata: { task_title: task.title, member_name: applicant.full_name },
+      created_at: new Date().toISOString(),
+      actor: currentUser,
+      task_title: task.title,
+      team_name: task.team_name,
+    };
+    setActivityLogs(prev => [act, ...prev]);
+
+    // Send notification to approved member
+    const notif: NotificationItem = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}`,
+      user_id: applicant.id,
+      title: 'Open Task Application Approved!',
+      message: `Your application for "${task.title}" was approved by ${currentUser.full_name}. The task is now in your active assignments.`,
+      type: 'open_task_approved',
+      link: `/tasks/${task.id}`,
+      read: false,
+      created_at: new Date().toISOString(),
+    };
+    setNotifications(prev => [notif, ...prev]);
+  }, [currentUser, openTaskInterests, tasks, profiles]);
+
+  const rejectInterest = useCallback((interestId: string) => {
+    const interest = openTaskInterests.find(i => i.id === interestId);
+    if (!interest) return;
+    const task = tasks.find(t => t.id === interest.task_id);
+    if (!task) return;
+
+    if (!Permissions.canManageOpenTask(currentUser, task)) {
+      console.warn('Unauthorized to reject interest for this task');
+      return;
+    }
+
+    setOpenTaskInterests(prev => prev.map(i => 
+      i.id === interestId 
+        ? { ...i, status: 'REJECTED', updated_at: new Date().toISOString() } 
+        : i
+    ));
+
+    const act: ActivityLog = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+      actor_id: currentUser.id,
+      team_id: task.team_id,
+      task_id: task.id,
+      sprint_id: task.sprint_id,
+      action: 'interest_rejected',
+      metadata: { task_title: task.title },
+      created_at: new Date().toISOString(),
+      actor: currentUser,
+      task_title: task.title,
+      team_name: task.team_name,
+    };
+    setActivityLogs(prev => [act, ...prev]);
+
+    // Notify member
+    const notif: NotificationItem = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}`,
+      user_id: interest.user_id,
+      title: 'Open Task Application Update',
+      message: `Your application for "${task.title}" was not selected at this time.`,
+      type: 'open_task_rejected',
+      link: '/open-tasks',
+      read: false,
+      created_at: new Date().toISOString(),
+    };
+    setNotifications(prev => [notif, ...prev]);
+  }, [currentUser, openTaskInterests, tasks]);
 
   // Sprint Operations
   const createSprint = useCallback((data: {
@@ -623,6 +957,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActivityLogs(SEED_ACTIVITY_LOGS);
     setNotifications(SEED_NOTIFICATIONS);
     setLeadMessages(SEED_LEAD_MESSAGES);
+    setOpenTaskInterests(SEED_OPEN_TASK_INTERESTS);
     setCurrentUserId(SEED_PROFILES[0].id);
   }, []);
 
@@ -634,6 +969,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sprints,
       tasks,
       visibleTasks,
+      openTasks,
+      openTaskInterests,
       comments,
       announcements,
       activityLogs,
@@ -648,6 +985,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateTaskStatus,
       deleteTask,
       moveTaskToSprint,
+      expressInterest,
+      withdrawInterest,
+      approveInterest,
+      rejectInterest,
       createSprint,
       updateSprint,
       startSprint,

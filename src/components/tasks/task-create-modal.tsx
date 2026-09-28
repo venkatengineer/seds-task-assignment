@@ -4,15 +4,16 @@ import React, { useState } from 'react';
 import { useApp } from '@/lib/store/app-context';
 import { Permissions } from '@/lib/permissions';
 import { Modal } from '@/components/ui/modal';
-import { TaskPriority, TaskStatus } from '@/types/database';
+import { TaskPriority, TaskStatus, TaskAssignmentType } from '@/types/database';
 import { UserAvatar } from '@/components/ui/avatar';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Users, Compass } from 'lucide-react';
 
 interface TaskCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTeamId?: string;
   defaultSprintId?: string | null;
+  defaultAssignmentType?: TaskAssignmentType;
 }
 
 export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
@@ -20,12 +21,14 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
   onClose,
   defaultTeamId,
   defaultSprintId,
+  defaultAssignmentType = 'DIRECT',
 }) => {
   const { currentUser, teams, sprints, allProfiles, createTask } = useApp();
 
   const isOfficeBearer = Permissions.isOfficeBearer(currentUser);
   const initialTeamId = defaultTeamId || currentUser.team_id || teams[0]?.id || '';
   
+  const [assignmentType, setAssignmentType] = useState<TaskAssignmentType>(defaultAssignmentType);
   const [teamId, setTeamId] = useState(initialTeamId);
   const [sprintId, setSprintId] = useState<string | null>(defaultSprintId || null);
   const [title, setTitle] = useState('');
@@ -35,6 +38,10 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
   const [dueDate, setDueDate] = useState('');
   const [storyPoints, setStoryPoints] = useState<number>(3);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  // Open Task specific state
+  const [skillsInput, setSkillsInput] = useState('');
+  const [maxMembers, setMaxMembers] = useState<number>(1);
+  const [requiresApproval, setRequiresApproval] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // Available team members for assignment
@@ -47,6 +54,13 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
     );
   };
 
+  const handleAddSkillPill = (skill: string) => {
+    const current = skillsInput.split(',').map(s => s.trim()).filter(Boolean);
+    if (!current.includes(skill)) {
+      setSkillsInput(current.length > 0 ? `${skillsInput}, ${skill}` : skill);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -57,6 +71,11 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
     }
 
     try {
+      const parsedSkills = skillsInput
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
       createTask({
         team_id: teamId,
         sprint_id: sprintId || null,
@@ -66,13 +85,21 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         status: sprintId ? status : 'BACKLOG',
         due_date: dueDate || null,
         story_points: Number(storyPoints),
-        assignee_ids: assigneeIds,
+        assignee_ids: assignmentType === 'DIRECT' ? assigneeIds : [],
+        assignment_type: assignmentType,
+        open_task_status: assignmentType === 'OPEN' ? 'PUBLISHED' : undefined,
+        max_assignees: assignmentType === 'OPEN' ? maxMembers : 1,
+        requires_approval: assignmentType === 'OPEN' ? requiresApproval : false,
+        skills: assignmentType === 'OPEN' ? parsedSkills : [],
       });
 
       // Reset & close
       setTitle('');
       setDescription('');
       setAssigneeIds([]);
+      setSkillsInput('');
+      setMaxMembers(1);
+      setRequiresApproval(true);
       setStoryPoints(3);
       setDueDate('');
       onClose();
@@ -96,6 +123,48 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             <span>{error}</span>
           </div>
         )}
+
+        {/* Assignment Mode Toggle */}
+        <div>
+          <label className="block text-xs font-mono text-slate-400 mb-2">ASSIGNMENT MODE</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setAssignmentType('DIRECT')}
+              className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-colors ${
+                assignmentType === 'DIRECT'
+                  ? 'bg-indigo-950/60 border-indigo-500/70 text-white ring-1 ring-indigo-500/50'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className={`p-1.5 rounded-md ${assignmentType === 'DIRECT' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                <Users className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold">Direct Assignment</div>
+                <div className="text-[10px] text-slate-400">Directly assign to member(s)</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAssignmentType('OPEN')}
+              className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-colors ${
+                assignmentType === 'OPEN'
+                  ? 'bg-amber-950/60 border-amber-500/70 text-white ring-1 ring-amber-500/50'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className={`p-1.5 rounded-md ${assignmentType === 'OPEN' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                <Compass className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold">Open Task (Auction)</div>
+                <div className="text-[10px] text-slate-400">Publish for team discovery</div>
+              </div>
+            </button>
+          </div>
+        </div>
 
         {/* Team Selector (Office Bearer only) */}
         {isOfficeBearer && (
@@ -125,7 +194,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Build telemetry dashboard"
+            placeholder={assignmentType === 'OPEN' ? 'e.g. Build SEDS Event Registration Page' : 'e.g. Build telemetry dashboard'}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
           />
         </div>
@@ -186,7 +255,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">DUE DATE</label>
+            <label className="block text-xs font-mono text-slate-400 mb-1">DEADLINE / DUE DATE</label>
             <input
               type="date"
               value={dueDate}
@@ -196,41 +265,115 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
           </div>
         </div>
 
-        {/* Assignees (Multi-select Collaborative Tasks) */}
-        <div>
-          <label className="block text-xs font-mono text-slate-400 mb-1.5 flex items-center justify-between">
-            <span>ASSIGN ENGINEERS (COLLABORATIVE)</span>
-            <span className="text-[10px] text-indigo-400">{assigneeIds.length} selected</span>
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 bg-slate-950/60 rounded-lg border border-slate-800">
-            {teamMembers.map(member => {
-              const isSelected = assigneeIds.includes(member.id);
-              return (
-                <div
-                  key={member.id}
-                  onClick={() => handleToggleAssignee(member.id)}
-                  className={`flex items-center gap-2 p-2 rounded cursor-pointer border text-xs transition-colors ${
-                    isSelected 
-                      ? 'bg-indigo-950/70 border-indigo-600/70 text-indigo-200' 
-                      : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <UserAvatar user={member} size="xs" />
-                  <div className="truncate flex-1">
-                    <div className="font-medium truncate text-white">{member.full_name}</div>
-                    <div className="text-[9px] text-slate-400 truncate">{member.title || member.role}</div>
+        {/* Dynamic Section: Direct Assignment vs Open Task Configuration */}
+        {assignmentType === 'DIRECT' ? (
+          <div>
+            <label className="block text-xs font-mono text-slate-400 mb-1.5 flex items-center justify-between">
+              <span>ASSIGN ENGINEERS (COLLABORATIVE)</span>
+              <span className="text-[10px] text-indigo-400">{assigneeIds.length} selected</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 bg-slate-950/60 rounded-lg border border-slate-800">
+              {teamMembers.map(member => {
+                const isSelected = assigneeIds.includes(member.id);
+                return (
+                  <div
+                    key={member.id}
+                    onClick={() => handleToggleAssignee(member.id)}
+                    className={`flex items-center gap-2 p-2 rounded cursor-pointer border text-xs transition-colors ${
+                      isSelected 
+                        ? 'bg-indigo-950/70 border-indigo-600/70 text-indigo-200' 
+                        : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <UserAvatar user={member} size="xs" />
+                    <div className="truncate flex-1">
+                      <div className="font-medium truncate text-white">{member.full_name}</div>
+                      <div className="text-[9px] text-slate-400 truncate">{member.title || member.role}</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {}}
+                      className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+                    />
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 p-3 bg-amber-950/20 border border-amber-900/40 rounded-lg">
+            <div>
+              <label className="block text-xs font-mono text-amber-300 mb-1">
+                REQUIRED SKILLS & TAGS (COMMA-SEPARATED)
+              </label>
+              <input
+                type="text"
+                value={skillsInput}
+                onChange={(e) => setSkillsInput(e.target.value)}
+                placeholder="e.g. Frontend, React, UI/UX"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              />
+              {/* Quick tags */}
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {['React', 'UI/UX', 'Frontend', 'Python', 'CAD', 'CFD', 'OpenRocket', 'RF Engineering', 'MATLAB'].map(pill => (
+                  <button
+                    key={pill}
+                    type="button"
+                    onClick={() => handleAddSkillPill(pill)}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                  >
+                    + {pill}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-mono text-amber-300 mb-1">
+                  MAXIMUM MEMBERS (CAPACITY)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={maxMembers}
+                  onChange={(e) => setMaxMembers(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                />
+                <span className="text-[10px] text-slate-400">Up to this many members can be assigned</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-amber-300 mb-1">
+                  LEAD APPROVAL CONFIGURATION
+                </label>
+                <div 
+                  onClick={() => setRequiresApproval(!requiresApproval)}
+                  className="flex items-center gap-2 p-2 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer hover:border-slate-600 transition-colors"
+                >
                   <input
                     type="checkbox"
-                    checked={isSelected}
-                    onChange={() => {}} // handled by parent div
-                    className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+                    checked={requiresApproval}
+                    onChange={() => {}}
+                    className="rounded bg-slate-800 border-slate-700 text-amber-500 focus:ring-0"
                   />
+                  <div className="text-[11px] leading-tight text-slate-300">
+                    {requiresApproval ? (
+                      <span className="text-amber-300 font-medium">Team Lead approval required</span>
+                    ) : (
+                      <span className="text-emerald-400 font-medium">Instant auto-claim</span>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
+                <span className="text-[10px] text-slate-400">
+                  {requiresApproval ? 'Applicants submit pitch for review' : 'First member to click claims task'}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Submit */}
         <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
@@ -243,9 +386,20 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
           </button>
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs shadow-indigo-950 transition-colors"
+            className={`px-4 py-2 rounded-lg text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 ${
+              assignmentType === 'OPEN'
+                ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-950'
+                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-950'
+            }`}
           >
-            Create Task
+            {assignmentType === 'OPEN' ? (
+              <>
+                <Compass className="w-3.5 h-3.5" />
+                <span>Publish Open Task</span>
+              </>
+            ) : (
+              <span>Create Task</span>
+            )}
           </button>
         </div>
       </form>

@@ -8,7 +8,7 @@ import { Permissions } from '@/lib/permissions';
 import { 
   LayoutDashboard, CheckSquare, Flag, 
   Users, BarChart3, MessageSquare, 
-  Orbit, ChevronRight
+  Orbit, ChevronRight, Compass
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/avatar';
@@ -24,10 +24,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const pathname = usePathname();
-  const { currentUser, teams } = useApp();
+  const { currentUser, teams, openTasks, openTaskInterests } = useApp();
 
   const isOfficeBearer = Permissions.isOfficeBearer(currentUser);
   const userTeam = teams.find(t => t.id === currentUser.team_id);
+
+  const pendingInterestsCount = React.useMemo(() => {
+    if (currentUser.role === 'TEAM_MEMBER') {
+      return openTasks.filter(t => t.open_task_status === 'PUBLISHED').length;
+    }
+    const myTeamTaskIds = openTasks.map(t => t.id);
+    return openTaskInterests.filter(i => myTeamTaskIds.includes(i.task_id) && i.status === 'INTERESTED').length;
+  }, [currentUser, openTasks, openTaskInterests]);
 
   const navItems = [
     {
@@ -41,6 +49,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/tasks',
       icon: CheckSquare,
       roles: ['OFFICE_BEARER', 'TEAM_LEAD', 'TEAM_MEMBER'],
+    },
+    {
+      name: 'Open Tasks',
+      href: '/open-tasks',
+      icon: Compass,
+      roles: ['OFFICE_BEARER', 'TEAM_LEAD', 'TEAM_MEMBER'],
+      badge: pendingInterestsCount > 0 ? pendingInterestsCount : undefined,
+      badgeColor: currentUser.role === 'TEAM_MEMBER' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30',
     },
     {
       name: 'Sprint Planning',
@@ -127,6 +143,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'
                     )} />
                     <span className="flex-1">{item.name}</span>
+                    {item.badge !== undefined && (
+                      <span className={cn(
+                        'text-[10px] font-mono px-1.5 py-0.5 rounded-full border',
+                        item.badgeColor || 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                      )}>
+                        {item.badge}
+                      </span>
+                    )}
                     {isActive && <ChevronRight className="w-3.5 h-3.5 text-indigo-400" />}
                   </Link>
                 );

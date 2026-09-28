@@ -19,8 +19,30 @@ export const Permissions = {
     if (user.role === 'OFFICE_BEARER') return true;
     if (user.role === 'TEAM_LEAD' && user.team_id === task.team_id) return true;
     if (user.role === 'TEAM_MEMBER') {
-      return task.assignee_ids.includes(user.id);
+      // Normal assigned tasks or collaborative tasks
+      if (task.assignee_ids.includes(user.id)) return true;
+      // Published Open Tasks of the user's team are visible for discovery
+      if (task.assignment_type === 'OPEN' && task.open_task_status === 'PUBLISHED' && task.team_id === user.team_id) {
+        return true;
+      }
     }
+    return false;
+  },
+
+  canExpressInterest(user: Profile | null | undefined, task: Task): boolean {
+    if (!user || user.role !== 'TEAM_MEMBER') return false;
+    if (user.team_id !== task.team_id) return false;
+    if (task.assignment_type !== 'OPEN' || task.open_task_status !== 'PUBLISHED') return false;
+    if (task.assignee_ids.includes(user.id)) return false; // Already an assignee
+    const currentAssigneeCount = task.assignee_ids.length;
+    const maxAssignees = task.max_assignees || 1;
+    return currentAssigneeCount < maxAssignees;
+  },
+
+  canManageOpenTask(user: Profile | null | undefined, task: Task): boolean {
+    if (!user) return false;
+    if (user.role === 'OFFICE_BEARER') return true;
+    if (user.role === 'TEAM_LEAD' && user.team_id === task.team_id) return true;
     return false;
   },
 

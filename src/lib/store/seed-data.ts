@@ -1,4 +1,4 @@
-import { Profile, Team, Sprint, Task, TaskComment, Announcement, ActivityLog, NotificationItem, LeadMessage } from '@/types/database';
+import { Profile, Team, Sprint, Task, TaskComment, Announcement, ActivityLog, NotificationItem, LeadMessage, OpenTaskInterest, TaskStatus, TaskPriority } from '@/types/database';
 
 export const SEED_TEAMS: Team[] = [
   {
@@ -288,7 +288,7 @@ export const SEED_SPRINTS: Sprint[] = [
   },
 ];
 
-export const SEED_TASKS: Task[] = [
+const RAW_SEED_TASKS: Array<Omit<Task, 'assignment_type' | 'open_task_status' | 'max_assignees' | 'requires_approval' | 'skills' | 'interested_count'>> = [
   // 1. Collaborative Task: Build telemetry dashboard (Assigned to Arjun, Siddharth, Priya)
   {
     id: '44444444-4444-4444-4444-444444444401',
@@ -520,6 +520,95 @@ export const SEED_TASKS: Task[] = [
   },
 ];
 
+export const SEED_TASKS: Task[] = [
+  ...RAW_SEED_TASKS.map(t => ({
+    assignment_type: 'DIRECT' as const,
+    open_task_status: null,
+    max_assignees: 1,
+    requires_approval: false,
+    skills: [],
+    ...t,
+  })),
+  // 12. Open Task: Build SEDS Event Registration Page
+  {
+    id: '44444444-4444-4444-4444-444444444412',
+    team_id: '11111111-1111-1111-1111-111111111101', // Project Medersia
+    sprint_id: '33333333-3333-3333-3333-333333333301', // Sprint 04
+    title: 'Build SEDS Event Registration Page',
+    description: 'Create the registration interface and attendee intake flow for the upcoming SEDS Space Horizons Symposium.',
+    status: 'TODO' as TaskStatus,
+    priority: 'HIGH' as TaskPriority,
+    due_date: '2026-10-10',
+    story_points: 5,
+    created_by: '22222222-2222-2222-2222-222222222203', // Vikram Rao (Lead)
+    created_at: '2026-09-24T10:00:00Z',
+    updated_at: '2026-09-27T12:00:00Z',
+    team_name: 'Project Medersia',
+    sprint_name: 'Sprint 04',
+    assignee_ids: [],
+    assignees: [],
+    comments_count: 0,
+    assignment_type: 'OPEN',
+    open_task_status: 'PUBLISHED',
+    max_assignees: 2,
+    requires_approval: true,
+    skills: ['Frontend', 'React', 'UI/UX'],
+    interested_count: 2,
+  },
+  // 13. Open Task: Ground Station UHF Yagi-Uda Antenna Modeling
+  {
+    id: '44444444-4444-4444-4444-444444444413',
+    team_id: '11111111-1111-1111-1111-111111111103', // Ground Station
+    sprint_id: '33333333-3333-3333-3333-333333333304', // Sprint 03
+    title: 'Ground Station UHF Yagi-Uda Antenna Modeling',
+    description: 'Perform 4NEC2 electromagnetic impedance and gain simulation for the 437MHz cross-polarized Yagi array.',
+    status: 'TODO' as TaskStatus,
+    priority: 'MEDIUM' as TaskPriority,
+    due_date: '2026-10-15',
+    story_points: 5,
+    created_by: '22222222-2222-2222-2222-222222222210', // Divya (Lead)
+    created_at: '2026-09-24T11:00:00Z',
+    updated_at: '2026-09-27T12:00:00Z',
+    team_name: 'Ground Station',
+    sprint_name: 'Sprint 03',
+    assignee_ids: [],
+    assignees: [],
+    comments_count: 0,
+    assignment_type: 'OPEN',
+    open_task_status: 'PUBLISHED',
+    max_assignees: 1,
+    requires_approval: true,
+    skills: ['RF Engineering', '4NEC2', 'Antenna Design'],
+    interested_count: 1,
+  },
+  // 14. Open Task: Solid Rocket Propellant Grain Geometry Optimization
+  {
+    id: '44444444-4444-4444-4444-444444444414',
+    team_id: '11111111-1111-1111-1111-111111111102', // Aerospace Systems
+    sprint_id: '33333333-3333-3333-3333-333333333303', // Sprint 02
+    title: 'Solid Rocket Propellant Grain Geometry Optimization',
+    description: 'Model star-grain regression and chamber pressure curves using MATLAB and OpenRocket.',
+    status: 'TODO' as TaskStatus,
+    priority: 'HIGH' as TaskPriority,
+    due_date: '2026-10-18',
+    story_points: 8,
+    created_by: '22222222-2222-2222-2222-222222222208', // Kabir (Lead)
+    created_at: '2026-09-24T12:00:00Z',
+    updated_at: '2026-09-27T12:00:00Z',
+    team_name: 'Aerospace Systems',
+    sprint_name: 'Sprint 02',
+    assignee_ids: [],
+    assignees: [],
+    comments_count: 0,
+    assignment_type: 'OPEN',
+    open_task_status: 'PUBLISHED',
+    max_assignees: 2,
+    requires_approval: true,
+    skills: ['OpenRocket', 'MATLAB', 'Propulsion'],
+    interested_count: 0,
+  },
+];
+
 export const SEED_COMMENTS: TaskComment[] = [
   {
     id: '66666666-6666-6666-6666-666666666601',
@@ -686,5 +775,38 @@ export const SEED_NOTIFICATIONS: NotificationItem[] = [
     link: '/communication',
     read: false,
     created_at: '2026-09-25T11:00:00Z',
+  },
+];
+
+export const SEED_OPEN_TASK_INTERESTS: OpenTaskInterest[] = [
+  {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01',
+    task_id: '44444444-4444-4444-4444-444444444412', // Build SEDS Event Registration Page
+    user_id: '22222222-2222-2222-2222-222222222206', // Priya Nair
+    message: 'Interested in the UI/UX styling and mobile-responsive registration forms.',
+    status: 'INTERESTED',
+    created_at: '2026-09-25T14:00:00Z',
+    updated_at: '2026-09-25T14:00:00Z',
+    user: SEED_PROFILES[5],
+  },
+  {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa02',
+    task_id: '44444444-4444-4444-4444-444444444412', // Build SEDS Event Registration Page
+    user_id: '22222222-2222-2222-2222-222222222205', // Arjun Kumar
+    message: 'I have experience with React and Tailwind CSS and would like to build the attendee flow.',
+    status: 'INTERESTED',
+    created_at: '2026-09-26T09:30:00Z',
+    updated_at: '2026-09-26T09:30:00Z',
+    user: SEED_PROFILES[4],
+  },
+  {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa03',
+    task_id: '44444444-4444-4444-4444-444444444413', // Ground Station UHF Yagi-Uda Antenna Modeling
+    user_id: '22222222-2222-2222-2222-222222222211', // Karthik V
+    message: 'Familiar with 4NEC2 impedance modeling from ground station passes.',
+    status: 'INTERESTED',
+    created_at: '2026-09-26T11:00:00Z',
+    updated_at: '2026-09-26T11:00:00Z',
+    user: SEED_PROFILES[10],
   },
 ];

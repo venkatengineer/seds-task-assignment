@@ -16,7 +16,16 @@ export const TeamMemberDashboard: React.FC<{
 }> = ({ onSelectTask }) => {
   const { currentUser, teams, sprints, tasks, updateTaskStatus, announcements } = useApp();
 
-  const userTeam = teams.find(t => t.id === currentUser.team_id) || teams[0];
+  const userTeam = teams.find(t => t.id === currentUser.team_id) || teams[0] || {
+    id: '',
+    name: 'Your Subsystem Team',
+    color: '#2563EB',
+    description: '',
+    icon: '🚀',
+    accent: '#2563EB',
+    created_at: '',
+    updated_at: '',
+  };
   const activeSprint = sprints.find(s => s.team_id === userTeam.id && s.status === 'ACTIVE');
 
   // Member's assigned tasks ONLY (strict role permission enforcement)

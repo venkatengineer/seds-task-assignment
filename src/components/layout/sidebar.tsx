@@ -8,7 +8,7 @@ import { Permissions } from '@/lib/permissions';
 import { 
   LayoutDashboard, CheckSquare, Flag, 
   Users, BarChart3, MessageSquare, 
-  Orbit, ChevronRight, Compass, Shield
+  Orbit, ChevronRight, Compass, Shield, LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/avatar';
@@ -24,7 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const pathname = usePathname();
-  const { currentUser, teams, openTasks, openTaskInterests } = useApp();
+  const { currentUser, teams, openTasks, openTaskInterests, signOut } = useApp();
 
   const isOfficeBearer = Permissions.isOfficeBearer(currentUser);
   const isAdmin = Permissions.isAdmin(currentUser);
@@ -222,19 +222,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Bottom User Profile Section */}
         <div className="p-3 border-t border-gray-100 bg-gray-50/50">
-          <div className="p-2 rounded-lg bg-white border border-gray-200 flex items-center gap-2.5 shadow-2xs">
-            <UserAvatar user={currentUser} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-xs text-gray-900 truncate">
-                {currentUser.full_name}
-              </div>
-              <div className="text-[10px] text-gray-500 truncate">
-                {userTeam ? userTeam.name : (isAdmin ? 'Administration' : 'Organization-Wide')}
-              </div>
-              <div className="mt-1">
-                <RoleBadge role={currentUser.role} size="sm" />
+          <div className="p-2 rounded-lg bg-white border border-gray-200 flex items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <UserAvatar user={currentUser} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-xs text-gray-900 truncate">
+                  {currentUser.full_name}
+                </div>
+                <div className="text-[10px] text-gray-500 truncate">
+                  {userTeam ? userTeam.name : (isAdmin ? 'Administration' : 'Organization-Wide')}
+                </div>
+                <div className="mt-1">
+                  <RoleBadge role={currentUser.role} size="sm" />
+                </div>
               </div>
             </div>
+
+            <button
+              onClick={() => signOut()}
+              title="Sign out"
+              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>

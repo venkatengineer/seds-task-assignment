@@ -1,53 +1,39 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useApp } from '@/lib/store/app-context';
-import { Orbit, Lock, Mail, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { RoleBadge } from '@/components/ui/badges';
-import { UserAvatar } from '@/components/ui/avatar';
+import { useApp } from '@/lib/store/app-context';
+import { Orbit, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 
 export const LoginView: React.FC = () => {
   const router = useRouter();
-  const { switchUser, allProfiles } = useApp();
+  const { signIn } = useApp();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Grouped seed demo profiles for quick login testing
-  const officeBearer = allProfiles.find(p => p.role === 'OFFICE_BEARER')!;
-  const teamLead = allProfiles.find(p => p.role === 'TEAM_LEAD')!;
-  const teamMember = allProfiles.find(p => p.role === 'TEAM_MEMBER')!;
-  const adminUser = allProfiles.find(p => p.role === 'ADMIN');
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setError('Please provide your email and password.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    // Find profile matching email or fallback to selected
-    const found = allProfiles.find(p => p.email.toLowerCase() === email.toLowerCase());
-    setTimeout(() => {
-      if (found) {
-        switchUser(found.id);
-        router.push(found.role === 'ADMIN' ? '/admin' : '/dashboard');
-      } else if (email) {
-        // If email not found in seed, let user in as first profile
-        switchUser(allProfiles[0].id);
-        router.push('/dashboard');
-      } else {
-        setError('Please provide an email or select a demo account.');
-        setLoading(false);
-      }
-    }, 300);
-  };
+    const res = await signIn(email.trim(), password);
 
-  const handleQuickDemoLogin = (userId: string) => {
-    switchUser(userId);
-    const user = allProfiles.find(p => p.id === userId);
-    router.push(user?.role === 'ADMIN' ? '/admin' : '/dashboard');
+    if (res?.error) {
+      setError(res.error);
+      setLoading(false);
+    } else {
+      // Successful sign in will update context and trigger redirect in context or here
+      router.push('/dashboard');
+    }
   };
 
   return (
@@ -62,7 +48,7 @@ export const LoginView: React.FC = () => {
             SEDS REC
           </h1>
           <p className="text-xs sm:text-sm text-gray-500">
-            Team Operations & Sprint Platform
+            Team Operations Platform
           </p>
         </div>
 
@@ -70,38 +56,49 @@ export const LoginView: React.FC = () => {
         <div className="p-6 sm:p-7 bg-white border border-gray-200 rounded-xl shadow-xs space-y-5">
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
-                {error}
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                SEDS CREDENTIAL EMAIL
+                Email
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                 <input
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="engineer@sedsrec.org"
+                  placeholder="Enter your email"
                   className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                PASSWORD
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-gray-700">
+                  Password
+                </label>
+                <Link
+                  href="/reset-password"
+                  className="text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                 <input
                   type="password"
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="Enter your password"
                   className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
                 />
               </div>
@@ -110,89 +107,18 @@ export const LoginView: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to SEDS Platform'}</span>
+              <span>{loading ? 'Signing in...' : 'Sign in'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Switcher Section */}
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2 font-medium">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              <span>Instant Demo Role Sign In:</span>
-            </div>
-
-            <div className="space-y-1.5">
-              {adminUser && (
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin(adminUser.id)}
-                  className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-between text-left text-xs transition-colors group cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <UserAvatar user={adminUser} size="xs" />
-                    <div className="truncate">
-                      <span className="font-semibold text-gray-900 group-hover:text-blue-600 block truncate">{adminUser.full_name}</span>
-                      <span className="text-[10px] text-gray-500 block truncate">{adminUser.title}</span>
-                    </div>
-                  </div>
-                  <RoleBadge role="ADMIN" size="sm" />
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(officeBearer.id)}
-                className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-between text-left text-xs transition-colors group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <UserAvatar user={officeBearer} size="xs" />
-                  <div className="truncate">
-                    <span className="font-semibold text-gray-900 group-hover:text-blue-600 block truncate">{officeBearer.full_name}</span>
-                    <span className="text-[10px] text-gray-500 block truncate">{officeBearer.title}</span>
-                  </div>
-                </div>
-                <RoleBadge role="OFFICE_BEARER" size="sm" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(teamLead.id)}
-                className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-between text-left text-xs transition-colors group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <UserAvatar user={teamLead} size="xs" />
-                  <div className="truncate">
-                    <span className="font-semibold text-gray-900 group-hover:text-blue-600 block truncate">{teamLead.full_name}</span>
-                    <span className="text-[10px] text-gray-500 block truncate">{teamLead.title}</span>
-                  </div>
-                </div>
-                <RoleBadge role="TEAM_LEAD" size="sm" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin(teamMember.id)}
-                className="w-full p-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-between text-left text-xs transition-colors group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <UserAvatar user={teamMember} size="xs" />
-                  <div className="truncate">
-                    <span className="font-semibold text-gray-900 group-hover:text-blue-600 block truncate">{teamMember.full_name}</span>
-                    <span className="text-[10px] text-gray-500 block truncate">{teamMember.title}</span>
-                  </div>
-                </div>
-                <RoleBadge role="TEAM_MEMBER" size="sm" />
-              </button>
-            </div>
-          </div>
         </div>
 
-        <div className="text-center text-[11px] text-gray-500 flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Production-Ready Supabase Auth & RLS Protocol</span>
+        {/* Footer info */}
+        <div className="text-center text-[11px] text-gray-400 font-medium flex items-center justify-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
+          <span>SEDS REC • Team Platform</span>
         </div>
       </div>
     </div>

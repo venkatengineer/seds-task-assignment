@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '@/lib/store/app-context';
 import { Permissions } from '@/lib/permissions';
-import { DevRoleSwitcher } from './role-switcher';
 import { NotificationCenter } from '@/components/notifications/notification-center';
-import { Search, Plus, Menu, ChevronRight } from 'lucide-react';
+import { UserAvatar } from '@/components/ui/avatar';
+import { RoleBadge } from '@/components/ui/badges';
+import { Search, Plus, Menu, ChevronRight, LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 interface TopbarProps {
@@ -21,8 +22,26 @@ export const Topbar: React.FC<TopbarProps> = ({
   onToggleMobileSidebar,
   breadcrumbs = [{ label: 'SEDS REC', href: '/dashboard' }],
 }) => {
-  const { currentUser } = useApp();
+  const { currentUser, signOut } = useApp();
   const canCreate = Permissions.isTeamLead(currentUser) || Permissions.isOfficeBearer(currentUser);
+  const isAdmin = Permissions.isAdmin(currentUser);
+
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    if (isProfileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProfileOpen]);
 
   return (
     <header className="h-14 border-b border-gray-200 bg-white sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6">
@@ -58,7 +77,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         </nav>
       </div>
 
-      {/* Right: Search, Create Task, Notification Center, Role Switcher */}
+      {/* Right: Search, Create Task, Notification Center, User Profile Menu */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Command Palette Trigger */}
         <button
@@ -86,8 +105,56 @@ export const Topbar: React.FC<TopbarProps> = ({
         {/* Dual-Channel Notification Center */}
         <NotificationCenter />
 
-        {/* Dev Role Switcher */}
-        <DevRoleSwitcher />
+        {/* Real User Profile Menu */}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+            title="User Profile"
+          >
+            <UserAvatar user={currentUser} size="sm" />
+          </button>
+
+          {isProfileOpen && (
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-98 duration-100 p-1">
+              <div className="p-3 border-b border-gray-100">
+                <div className="font-semibold text-xs text-gray-900 truncate">
+                  {currentUser.full_name}
+                </div>
+                <div className="text-[11px] text-gray-500 font-mono truncate">
+                  {currentUser.email}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <RoleBadge role={currentUser.role} size="sm" />
+                </div>
+              </div>
+
+              <div className="p-1 space-y-0.5">
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Admin Panel</span>
+                  </Link>
+                )}
+
+                <button
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    signOut();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors font-medium cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

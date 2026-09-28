@@ -44,7 +44,7 @@ export const NotificationPreferencesModal: React.FC<NotificationPreferencesModal
       setPushStatus(permission as 'default' | 'granted' | 'denied');
 
       if (permission === 'granted') {
-        // Register mock/real push subscription
+        // Register push subscription
         subscribeToPush({
           endpoint: `https://fcm.googleapis.com/fcm/send/simulated-${Date.now()}`,
           p256dh_key: 'BCX15...simulatedKey',

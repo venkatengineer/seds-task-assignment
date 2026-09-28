@@ -17,10 +17,19 @@ export const TeamLeadDashboard: React.FC<{
 }> = ({ onCreateTask }) => {
   const { currentUser, teams, sprints, tasks, allProfiles } = useApp();
 
-  const userTeam = teams.find(t => t.id === currentUser.team_id) || teams[0];
-  const teamMembers = allProfiles.filter(p => p.team_id === userTeam.id);
-  const teamTasks = tasks.filter(t => t.team_id === userTeam.id);
-  const activeSprint = sprints.find(s => s.team_id === userTeam.id && s.status === 'ACTIVE') || sprints.find(s => s.team_id === userTeam.id);
+  const userTeam = teams.find(t => t.id === currentUser.team_id) || teams[0] || {
+    id: '',
+    name: 'Your Subsystem Team',
+    color: '#2563EB',
+    description: 'No team assigned yet. An administrator can assign you to a project team.',
+    icon: '🚀',
+    accent: '#2563EB',
+    created_at: '',
+    updated_at: '',
+  };
+  const teamMembers = allProfiles.filter(p => userTeam.id && p.team_id === userTeam.id);
+  const teamTasks = tasks.filter(t => userTeam.id && t.team_id === userTeam.id);
+  const activeSprint = sprints.find(s => userTeam.id && s.team_id === userTeam.id && s.status === 'ACTIVE') || sprints.find(s => userTeam.id && s.team_id === userTeam.id);
 
   const sprintTasks = activeSprint ? teamTasks.filter(t => t.sprint_id === activeSprint.id) : teamTasks;
   const completedTasks = sprintTasks.filter(t => t.status === 'COMPLETED');

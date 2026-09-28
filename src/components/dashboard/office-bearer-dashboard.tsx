@@ -134,7 +134,12 @@ export const OfficeBearerDashboard: React.FC<{
 
         {/* Matrix of Teams */}
         <div className="space-y-3">
-          {teams.map(team => {
+          {teams.length === 0 ? (
+            <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl">
+              No teams created yet. Administrators can configure project teams in the Admin Panel.
+            </div>
+          ) : (
+            teams.map(team => {
             const teamTasks = tasks.filter(t => t.team_id === team.id);
             const teamSprint = sprints.find(s => s.team_id === team.id && s.status === 'ACTIVE') || sprints.find(s => s.team_id === team.id);
             const sprintTasks = teamSprint ? teamTasks.filter(t => t.sprint_id === teamSprint.id) : teamTasks;
@@ -195,7 +200,7 @@ export const OfficeBearerDashboard: React.FC<{
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 
@@ -254,17 +259,21 @@ export const OfficeBearerDashboard: React.FC<{
           </div>
 
           <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {activityLogs.slice(0, 7).map(act => (
-              <div key={act.id} className="text-xs pb-2 border-b border-gray-100 last:border-0">
-                <div className="flex items-center justify-between gap-1 mb-0.5">
-                  <span className="font-semibold text-gray-900 truncate">{act.actor?.full_name || 'System'}</span>
-                  <span className="text-[10px] text-gray-400 shrink-0">{formatTimeAgo(act.created_at)}</span>
+            {activityLogs.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-4 text-center">No recent activity</p>
+            ) : (
+              activityLogs.slice(0, 7).map(act => (
+                <div key={act.id} className="text-xs pb-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className="font-semibold text-gray-900 truncate">{act.actor?.full_name || 'System'}</span>
+                    <span className="text-[10px] text-gray-400 shrink-0">{formatTimeAgo(act.created_at)}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {act.action.replace('_', ' ')}: <span className="text-gray-700 font-medium">{act.task_title || act.team_name || 'update'}</span>
+                  </div>
                 </div>
-                <div className="text-[11px] text-gray-500">
-                  {act.action.replace('_', ' ')}: <span className="text-gray-700 font-medium">{act.task_title || act.team_name || 'update'}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

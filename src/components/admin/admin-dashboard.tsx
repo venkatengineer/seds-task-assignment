@@ -559,9 +559,9 @@ export const AdminDashboard: React.FC = () => {
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <span className="font-semibold block">{formError}</span>
-                {formError.includes('SUPABASE_SERVICE_ROLE_KEY') && (
+                {(formError.includes('SUPABASE_SERVICE_ROLE_KEY') || formError.includes('SUPABASE_SECRET_KEY') || formError.includes('admin secret key')) && (
                   <p className="text-[11px] text-red-600 mt-1 leading-relaxed">
-                    <strong>Resolution:</strong> In your Vercel Project Settings &gt; Environment Variables, add <code className="bg-red-100 font-mono px-1 py-0.5 rounded">SUPABASE_SERVICE_ROLE_KEY</code> and redeploy.
+                    <strong>Resolution:</strong> In your Vercel Project Settings &gt; Environment Variables, ensure <code className="bg-red-100 font-mono px-1 py-0.5 rounded">SUPABASE_SECRET_KEY</code> or <code className="bg-red-100 font-mono px-1 py-0.5 rounded">SUPABASE_SERVICE_ROLE_KEY</code> is enabled for your environment and redeploy.
                   </p>
                 )}
               </div>

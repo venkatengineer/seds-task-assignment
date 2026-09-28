@@ -8,11 +8,12 @@ import { Permissions } from '@/lib/permissions';
 import { 
   LayoutDashboard, CheckSquare, Flag, 
   Users, BarChart3, MessageSquare, 
-  Orbit, ChevronRight, Compass, Shield, LogOut
+  Orbit, ChevronRight, Compass, Shield, LogOut, KeyRound
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/avatar';
 import { RoleBadge } from '@/components/ui/badges';
+import { ChangePasswordModal } from '@/components/profile/change-password-modal';
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isAdmin = Permissions.isAdmin(currentUser);
   const canManageAdmin = Permissions.canManageUsers(currentUser);
   const userTeam = teams.find(t => t.id === currentUser.team_id);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = React.useState(false);
 
   const pendingInterestsCount = React.useMemo(() => {
     if (isAdmin) return 0;
@@ -238,16 +240,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={() => signOut()}
-              title="Sign out"
-              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer shrink-0"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                title="Change Password"
+                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                title="Sign out"
+                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </>
   );
 };

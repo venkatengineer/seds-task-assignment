@@ -6,8 +6,9 @@ import { Permissions } from '@/lib/permissions';
 import { NotificationCenter } from '@/components/notifications/notification-center';
 import { UserAvatar } from '@/components/ui/avatar';
 import { RoleBadge } from '@/components/ui/badges';
-import { Search, Plus, Menu, ChevronRight, LogOut, Shield } from 'lucide-react';
+import { Search, Plus, Menu, ChevronRight, LogOut, Shield, KeyRound } from 'lucide-react';
 import Link from 'next/link';
+import { ChangePasswordModal } from '@/components/profile/change-password-modal';
 
 interface TopbarProps {
   onOpenCommandPalette: () => void;
@@ -27,6 +28,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   const isAdmin = Permissions.isAdmin(currentUser);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,6 +144,18 @@ export const Topbar: React.FC<TopbarProps> = ({
                 )}
 
                 <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    setIsChangePasswordOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium cursor-pointer"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-gray-500" />
+                  <span>Change Password</span>
+                </button>
+
+                <button
                   onClick={() => {
                     setIsProfileOpen(false);
                     signOut();
@@ -156,6 +170,11 @@ export const Topbar: React.FC<TopbarProps> = ({
           )}
         </div>
       </div>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </header>
   );
 };

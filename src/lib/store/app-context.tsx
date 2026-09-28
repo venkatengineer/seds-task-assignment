@@ -67,7 +67,7 @@ interface AppContextType {
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
-  updatePassword: (password: string) => Promise<{ error?: string }>;
+  updatePassword: (newPassword: string, currentPassword?: string) => Promise<{ error?: string }>;
 
   // Notification operations
   markNotificationRead: (id: string) => Promise<void>;
@@ -534,9 +534,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Auth Action: Update Password
-  const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    return error ? { error: error.message } : {};
+  const updatePassword = async (newPassword: string, currentPassword?: string): Promise<{ error?: string }> => {
+    try {
+      if (!newPassword || newPassword.length < 6) {
+        return { error: 'New password must be at least 6 characters long.' };
+      }
+
+      if (currentPassword && currentUser.email) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password: currentPassword,
+        });
+        if (verifyErr) {
+          return { error: 'Current password is incorrect. Please try again.' };
+        }
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      return error ? { error: error.message } : {};
+    } catch (err: any) {
+      return { error: err.message || 'Failed to update password.' };
+    }
   };
 
   // Task Operations

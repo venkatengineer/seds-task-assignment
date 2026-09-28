@@ -103,8 +103,8 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
       setStoryPoints(3);
       setDueDate('');
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create task');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create task');
     }
   };
 
@@ -114,35 +114,35 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
       onClose={onClose}
       title="Create New SEDS Task"
       description="Create a work item, assign aerospace engineers, and schedule in active sprint."
-      maxWidth="lg"
+      size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 py-1">
         {error && (
-          <div className="p-3 bg-rose-950/60 border border-rose-800 rounded-lg text-xs text-rose-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Assignment Mode Toggle */}
         <div>
-          <label className="block text-xs font-mono text-slate-400 mb-2">ASSIGNMENT MODE</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Assignment Mechanism</label>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setAssignmentType('DIRECT')}
               className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-colors ${
                 assignmentType === 'DIRECT'
-                  ? 'bg-indigo-950/60 border-indigo-500/70 text-white ring-1 ring-indigo-500/50'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  ? 'bg-blue-50 border-blue-300 text-blue-900 ring-1 ring-blue-400'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <div className={`p-1.5 rounded-md ${assignmentType === 'DIRECT' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <div className={`p-1.5 rounded-md ${assignmentType === 'DIRECT' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                 <Users className="w-3.5 h-3.5" />
               </div>
               <div>
-                <div className="text-xs font-semibold">Direct Assignment</div>
-                <div className="text-[10px] text-slate-400">Directly assign to member(s)</div>
+                <div className="text-xs font-semibold text-gray-900">Direct Assignment</div>
+                <div className="text-[11px] text-gray-500">Assign to specific member(s)</div>
               </div>
             </button>
 
@@ -151,16 +151,16 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
               onClick={() => setAssignmentType('OPEN')}
               className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-colors ${
                 assignmentType === 'OPEN'
-                  ? 'bg-amber-950/60 border-amber-500/70 text-white ring-1 ring-amber-500/50'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  ? 'bg-amber-50 border-amber-300 text-amber-900 ring-1 ring-amber-400'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <div className={`p-1.5 rounded-md ${assignmentType === 'OPEN' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <div className={`p-1.5 rounded-md ${assignmentType === 'OPEN' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                 <Compass className="w-3.5 h-3.5" />
               </div>
               <div>
-                <div className="text-xs font-semibold">Open Task (Auction)</div>
-                <div className="text-[10px] text-slate-400">Publish for team discovery</div>
+                <div className="text-xs font-semibold text-gray-900">Open Task (Auction)</div>
+                <div className="text-[11px] text-gray-500">Publish for team discovery</div>
               </div>
             </button>
           </div>
@@ -169,7 +169,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         {/* Team Selector (Office Bearer only) */}
         {isOfficeBearer && (
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">TEAM / SUBSYSTEM</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Target Team / Subsystem</label>
             <select
               value={teamId}
               onChange={(e) => {
@@ -177,7 +177,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                 setSprintId(null);
                 setAssigneeIds([]);
               }}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500"
             >
               {teams.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -188,37 +188,37 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
         {/* Task Title */}
         <div>
-          <label className="block text-xs font-mono text-slate-400 mb-1">TASK TITLE *</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Task Title *</label>
           <input
             type="text"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={assignmentType === 'OPEN' ? 'e.g. Build SEDS Event Registration Page' : 'e.g. Build telemetry dashboard'}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 font-medium"
           />
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-xs font-mono text-slate-400 mb-1">DESCRIPTION & SPECS</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Description & Requirements</label>
           <textarea
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Technical details, acceptance criteria, or hardware dependencies..."
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 resize-none"
           />
         </div>
 
         {/* Sprint & Story Points */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">SPRINT</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Sprint</label>
             <select
               value={sprintId || ''}
               onChange={(e) => setSprintId(e.target.value ? e.target.value : null)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500"
             >
               <option value="">Move to Backlog</option>
               {teamSprints.map(s => (
@@ -227,14 +227,14 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">STORY POINTS (ESTIMATE)</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Story Points (Estimate)</label>
             <input
               type="number"
               min="0"
               max="50"
               value={storyPoints}
               onChange={(e) => setStoryPoints(Math.max(0, parseInt(e.target.value) || 0))}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500 font-mono"
             />
           </div>
         </div>
@@ -242,11 +242,11 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         {/* Priority & Due Date */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">PRIORITY</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Priority</label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500"
             >
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
@@ -255,12 +255,12 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">DEADLINE / DUE DATE</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Deadline / Due Date</label>
             <input
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500"
             />
           </div>
         </div>
@@ -268,33 +268,33 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         {/* Dynamic Section: Direct Assignment vs Open Task Configuration */}
         {assignmentType === 'DIRECT' ? (
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1.5 flex items-center justify-between">
-              <span>ASSIGN ENGINEERS (COLLABORATIVE)</span>
-              <span className="text-[10px] text-indigo-400">{assigneeIds.length} selected</span>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center justify-between">
+              <span>Assign Engineers (Collaborative)</span>
+              <span className="text-[11px] text-blue-600 font-medium">{assigneeIds.length} selected</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 bg-slate-950/60 rounded-lg border border-slate-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1.5 bg-gray-50 rounded-lg border border-gray-200">
               {teamMembers.map(member => {
                 const isSelected = assigneeIds.includes(member.id);
                 return (
                   <div
                     key={member.id}
                     onClick={() => handleToggleAssignee(member.id)}
-                    className={`flex items-center gap-2 p-2 rounded cursor-pointer border text-xs transition-colors ${
+                    className={`flex items-center gap-2 p-2 rounded-md cursor-pointer border text-xs transition-colors ${
                       isSelected 
-                        ? 'bg-indigo-950/70 border-indigo-600/70 text-indigo-200' 
-                        : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-300'
+                        ? 'bg-blue-50 border-blue-300 text-blue-900' 
+                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
                     }`}
                   >
-                    <UserAvatar user={member} size="xs" />
+                    <UserAvatar user={member} size="sm" />
                     <div className="truncate flex-1">
-                      <div className="font-medium truncate text-white">{member.full_name}</div>
-                      <div className="text-[9px] text-slate-400 truncate">{member.title || member.role}</div>
+                      <div className="font-semibold truncate text-gray-900">{member.full_name}</div>
+                      <div className="text-[10px] text-gray-500 truncate">{member.title || member.role}</div>
                     </div>
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => {}}
-                      className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-0"
                     />
                   </div>
                 );
@@ -302,17 +302,17 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-3 p-3 bg-amber-950/20 border border-amber-900/40 rounded-lg">
+          <div className="space-y-3 p-3.5 bg-amber-50/50 border border-amber-200 rounded-lg">
             <div>
-              <label className="block text-xs font-mono text-amber-300 mb-1">
-                REQUIRED SKILLS & TAGS (COMMA-SEPARATED)
+              <label className="block text-xs font-semibold text-amber-900 mb-1">
+                Required Skills & Tags (Comma-Separated)
               </label>
               <input
                 type="text"
                 value={skillsInput}
                 onChange={(e) => setSkillsInput(e.target.value)}
                 placeholder="e.g. Frontend, React, UI/UX"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-amber-500"
               />
               {/* Quick tags */}
               <div className="flex flex-wrap gap-1 mt-1.5">
@@ -321,7 +321,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                     key={pill}
                     type="button"
                     onClick={() => handleAddSkillPill(pill)}
-                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                    className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 transition-colors"
                   >
                     + {pill}
                   </button>
@@ -331,8 +331,8 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block text-xs font-mono text-amber-300 mb-1">
-                  MAXIMUM MEMBERS (CAPACITY)
+                <label className="block text-xs font-semibold text-amber-900 mb-1">
+                  Maximum Members (Capacity)
                 </label>
                 <input
                   type="number"
@@ -340,34 +340,34 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                   max="10"
                   value={maxMembers}
                   onChange={(e) => setMaxMembers(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-amber-500 font-mono"
                 />
-                <span className="text-[10px] text-slate-400">Up to this many members can be assigned</span>
+                <span className="text-[10px] text-gray-500 mt-0.5 block">Up to this many members can be assigned</span>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-amber-300 mb-1">
-                  LEAD APPROVAL CONFIGURATION
+                <label className="block text-xs font-semibold text-amber-900 mb-1">
+                  Lead Approval Configuration
                 </label>
                 <div 
                   onClick={() => setRequiresApproval(!requiresApproval)}
-                  className="flex items-center gap-2 p-2 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer hover:border-slate-600 transition-colors"
+                  className="flex items-center gap-2 p-2 bg-white border border-amber-200 rounded-lg cursor-pointer hover:border-amber-300 transition-colors"
                 >
                   <input
                     type="checkbox"
                     checked={requiresApproval}
                     onChange={() => {}}
-                    className="rounded bg-slate-800 border-slate-700 text-amber-500 focus:ring-0"
+                    className="w-3.5 h-3.5 rounded border-amber-300 text-amber-600 focus:ring-0"
                   />
-                  <div className="text-[11px] leading-tight text-slate-300">
+                  <div className="text-[11px] leading-tight text-gray-800">
                     {requiresApproval ? (
-                      <span className="text-amber-300 font-medium">Team Lead approval required</span>
+                      <span className="text-amber-800 font-semibold">Team Lead approval required</span>
                     ) : (
-                      <span className="text-emerald-400 font-medium">Instant auto-claim</span>
+                      <span className="text-emerald-700 font-semibold">Instant auto-claim</span>
                     )}
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-gray-500 mt-0.5 block">
                   {requiresApproval ? 'Applicants submit pitch for review' : 'First member to click claims task'}
                 </span>
               </div>
@@ -376,20 +376,20 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
         )}
 
         {/* Submit */}
-        <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+        <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className={`px-4 py-2 rounded-lg text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 ${
+            className={`px-4 py-1.5 rounded-lg text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 ${
               assignmentType === 'OPEN'
-                ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-950'
-                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-950'
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
             {assignmentType === 'OPEN' ? (

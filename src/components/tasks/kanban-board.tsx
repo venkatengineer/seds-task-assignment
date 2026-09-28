@@ -14,13 +14,13 @@ import {
 import { TaskCreateModal } from './task-create-modal';
 import { TaskDetailDrawer } from './task-detail-drawer';
 
-const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
-  { id: 'BACKLOG', label: 'Backlog', color: 'border-slate-700' },
-  { id: 'TODO', label: 'To Do', color: 'border-sky-700/60' },
-  { id: 'IN_PROGRESS', label: 'In Progress', color: 'border-indigo-600/70' },
-  { id: 'IN_REVIEW', label: 'In Review', color: 'border-purple-600/70' },
-  { id: 'COMPLETED', label: 'Completed', color: 'border-emerald-600/70' },
-  { id: 'BLOCKED', label: 'Blocked', color: 'border-rose-600/80' },
+const COLUMNS: { id: TaskStatus; label: string; dotColor: string }[] = [
+  { id: 'BACKLOG', label: 'Backlog', dotColor: 'bg-gray-400' },
+  { id: 'TODO', label: 'To Do', dotColor: 'bg-sky-500' },
+  { id: 'IN_PROGRESS', label: 'In Progress', dotColor: 'bg-blue-600' },
+  { id: 'IN_REVIEW', label: 'In Review', dotColor: 'bg-purple-600' },
+  { id: 'COMPLETED', label: 'Completed', dotColor: 'bg-emerald-600' },
+  { id: 'BLOCKED', label: 'Blocked', dotColor: 'bg-red-600' },
 ];
 
 export const KanbanBoard: React.FC = () => {
@@ -93,21 +93,21 @@ export const KanbanBoard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#1b2135]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded">
-              {isMember ? 'RESTRICTED MEMBER SCOPE' : 'SUBSYSTEM TASK BOARD'}
+            <span className="text-[10px] font-semibold uppercase bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-md">
+              {isMember ? 'Restricted Member Scope' : 'Engineering Task Board'}
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
             {isMember ? 'My Tasks & Permitted Board' : 'Task Operations Board'}
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             {isMember
-              ? 'Displaying only your assigned and collaborative tasks. Drag permitted tasks to update status.'
+              ? 'Displaying only your assigned and collaborative tasks. Drag permitted cards to update workflow status.'
               : 'Interactive 6-column aerospace Kanban board with real-time sync and drag-and-drop state transitions.'}
           </p>
         </div>
@@ -119,7 +119,7 @@ export const KanbanBoard: React.FC = () => {
             <select
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 focus:outline-hidden focus:border-blue-500"
             >
               <option value="ALL">All Teams</option>
               {teams.map(t => (
@@ -132,7 +132,7 @@ export const KanbanBoard: React.FC = () => {
           <select
             value={selectedPriority}
             onChange={(e) => setSelectedPriority(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+            className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 focus:outline-hidden focus:border-blue-500"
           >
             <option value="ALL">All Priorities</option>
             <option value="LOW">Low</option>
@@ -143,13 +143,13 @@ export const KanbanBoard: React.FC = () => {
 
           {/* Search Box */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter tasks..."
-              className="bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-36 sm:w-48"
+              className="bg-white border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 w-36 sm:w-48"
             />
           </div>
 
@@ -157,7 +157,7 @@ export const KanbanBoard: React.FC = () => {
           {(isTeamLead || isOfficeBearer) && (
             <button
               onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Create Task</span>
@@ -177,21 +177,22 @@ export const KanbanBoard: React.FC = () => {
               key={col.id}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
-              className={`bg-[#0a0c14] border border-[#1c2236] rounded-xl flex flex-col min-h-[500px] transition-colors ${
-                draggedTaskId ? 'hover:border-indigo-500/50 hover:bg-[#0e111d]' : ''
+              className={`bg-gray-50/70 border border-gray-200 rounded-xl flex flex-col min-h-[500px] transition-colors ${
+                draggedTaskId ? 'hover:border-blue-400 hover:bg-blue-50/20' : ''
               }`}
             >
               {/* Column Header */}
-              <div className={`p-3 border-b border-[#181d2f] flex items-center justify-between ${col.color}`}>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+              <div className="p-3 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-xl">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${col.dotColor}`} />
+                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
                     {col.label}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
                     {colTasks.length}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-slate-500">
+                <span className="text-[11px] font-mono text-gray-400">
                   {totalPoints} pts
                 </span>
               </div>
@@ -199,7 +200,7 @@ export const KanbanBoard: React.FC = () => {
               {/* Task Cards Container */}
               <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[70vh]">
                 {colTasks.length === 0 ? (
-                  <div className="h-28 flex items-center justify-center text-center text-slate-600 text-xs italic border border-dashed border-slate-800/60 rounded-lg">
+                  <div className="h-24 flex items-center justify-center text-center text-gray-400 text-xs italic border border-dashed border-gray-200 rounded-lg">
                     No tasks
                   </div>
                 ) : (
@@ -213,41 +214,41 @@ export const KanbanBoard: React.FC = () => {
                         draggable={canDrag}
                         onDragStart={(e) => handleDragStart(e, task.id)}
                         onClick={() => setSelectedTaskId(task.id)}
-                        className={`p-3 bg-[#0f121d] border border-[#22283e] hover:border-indigo-500/60 rounded-lg shadow-xs hover:shadow-indigo-950/40 transition-all cursor-pointer group ${
+                        className={`p-3 bg-white border border-gray-200 hover:border-blue-400 rounded-lg shadow-2xs hover:shadow-xs transition-all cursor-pointer group ${
                           draggedTaskId === task.id ? 'opacity-40' : ''
                         }`}
                       >
                         {/* Priority & Story Points */}
-                        <div className="flex items-center justify-between gap-1 mb-2">
+                        <div className="flex items-center justify-between gap-1 mb-1.5">
                           <PriorityBadge priority={task.priority} size="sm" />
-                          <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">
+                          <span className="text-[10px] font-mono text-gray-500 px-1.5 py-0.2 rounded bg-gray-100 border border-gray-200">
                             {task.story_points} pts
                           </span>
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-xs font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors line-clamp-2 leading-relaxed">
+                        <h4 className="text-xs font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-relaxed">
                           {task.title}
                         </h4>
 
                         {/* Team and Sprint tags */}
-                        <div className="text-[10px] font-mono text-slate-400 mt-1.5 truncate">
+                        <div className="text-[10px] text-gray-400 mt-1 truncate">
                           {task.team_name}
                           {task.sprint_name && ` • ${task.sprint_name}`}
                         </div>
 
                         {/* Card Footer: Due Date, Collaborative Indicator, Assignees */}
-                        <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between text-slate-400">
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                        <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-gray-500">
+                          <div className="flex items-center gap-1.5 text-[10px]">
                             {task.due_date && (
-                              <div className="flex items-center gap-1 text-slate-400">
-                                <Calendar className="w-3 h-3 text-slate-500" />
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <Calendar className="w-3 h-3 text-gray-400" />
                                 <span>{formatDate(task.due_date)}</span>
                               </div>
                             )}
                             {task.comments_count > 0 && (
-                              <div className="flex items-center gap-0.5 text-slate-400">
-                                <MessageSquare className="w-3 h-3 text-slate-500" />
+                              <div className="flex items-center gap-0.5 text-gray-500">
+                                <MessageSquare className="w-3 h-3 text-gray-400" />
                                 <span>{task.comments_count}</span>
                               </div>
                             )}
@@ -255,7 +256,7 @@ export const KanbanBoard: React.FC = () => {
 
                           <div className="flex items-center gap-1">
                             {isCollaborative && (
-                              <span className="text-[9px] font-mono text-indigo-400 bg-indigo-950 px-1 rounded">
+                              <span className="text-[9px] font-semibold text-blue-700 bg-blue-50 px-1 rounded border border-blue-200">
                                 Collab
                               </span>
                             )}

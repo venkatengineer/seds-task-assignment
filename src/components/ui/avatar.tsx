@@ -43,7 +43,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     <div
       title={showTooltip ? `${displayName} ${user?.title ? `(${user.title})` : ''}` : undefined}
       className={cn(
-        'relative inline-flex items-center justify-center rounded-full font-semibold shrink-0 select-none overflow-hidden bg-linear-to-br from-indigo-900 to-slate-900 border border-indigo-700/50 text-indigo-200 shadow-xs',
+        'relative inline-flex items-center justify-center rounded-full font-medium shrink-0 select-none overflow-hidden bg-gray-100 border border-gray-200 text-gray-700',
         sizeClasses[size],
         className
       )}

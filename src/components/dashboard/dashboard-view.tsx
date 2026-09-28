@@ -5,6 +5,7 @@ import { useApp } from '@/lib/store/app-context';
 import { OfficeBearerDashboard } from './office-bearer-dashboard';
 import { TeamLeadDashboard } from './team-lead-dashboard';
 import { TeamMemberDashboard } from './team-member-dashboard';
+import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { TaskDetailDrawer } from '@/components/tasks/task-detail-drawer';
 import { TaskCreateModal } from '@/components/tasks/task-create-modal';
 
@@ -15,6 +16,10 @@ export const DashboardView: React.FC = () => {
 
   return (
     <>
+      {currentUser.role === 'ADMIN' && (
+        <AdminDashboard />
+      )}
+
       {currentUser.role === 'OFFICE_BEARER' && (
         <OfficeBearerDashboard
           onSelectTask={setSelectedTaskId}

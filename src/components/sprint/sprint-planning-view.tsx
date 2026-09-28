@@ -35,7 +35,7 @@ export const SprintPlanningView: React.FC = () => {
     return sprints.filter(s => s.team_id === selectedTeamId);
   }, [sprints, selectedTeamId]);
 
-  // Selected Sprint (defaults to ACTIVE or first planned)
+  // Selected Sprint
   const [selectedSprintId, setSelectedSprintId] = useState<string>(() => {
     const active = teamSprints.find(s => s.status === 'ACTIVE');
     return active ? active.id : (teamSprints[0]?.id || '');
@@ -45,12 +45,12 @@ export const SprintPlanningView: React.FC = () => {
     return teamSprints.find(s => s.id === selectedSprintId) || teamSprints[0];
   }, [teamSprints, selectedSprintId]);
 
-  // Backlog tasks (team tasks with sprint_id === null)
+  // Backlog tasks
   const backlogTasks = useMemo(() => {
     return tasks.filter(t => t.team_id === selectedTeamId && (!t.sprint_id || t.status === 'BACKLOG'));
   }, [tasks, selectedTeamId]);
 
-  // Sprint tasks (tasks for this sprint)
+  // Sprint tasks
   const sprintTasks = useMemo(() => {
     if (!currentSprint) return [];
     return tasks.filter(t => t.sprint_id === currentSprint.id);
@@ -118,19 +118,19 @@ export const SprintPlanningView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#1b2135]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded">
-              SPRINT PLANNING ENGINE
+            <span className="text-[10px] font-semibold uppercase bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md">
+              Sprint Planning Engine
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
             Subsystem Sprint Planning
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             Manage backlog deliverables, assign story points, and commit milestones to active sprint.
           </p>
         </div>
@@ -146,7 +146,7 @@ export const SprintPlanningView: React.FC = () => {
                 const firstSprint = sprints.find(s => s.team_id === e.target.value);
                 setSelectedSprintId(firstSprint?.id || '');
               }}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+              className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 focus:outline-hidden focus:border-blue-500 font-medium"
             >
               {teams.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -158,7 +158,7 @@ export const SprintPlanningView: React.FC = () => {
           {canManage && (
             <button
               onClick={() => setIsSprintModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Create Sprint</span>
@@ -169,7 +169,7 @@ export const SprintPlanningView: React.FC = () => {
 
       {/* Sprint Info Banner & Lifecycle Controls */}
       {currentSprint ? (
-        <div className="p-5 bg-[#0e111b] border border-[#20273f] rounded-2xl shadow-xl space-y-4 glow-subtle">
+        <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2.5">
@@ -177,7 +177,7 @@ export const SprintPlanningView: React.FC = () => {
                 <select
                   value={currentSprint.id}
                   onChange={(e) => setSelectedSprintId(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 text-sm font-bold text-white rounded-lg px-2.5 py-1 focus:outline-none focus:border-indigo-500"
+                  className="bg-white border border-gray-200 text-sm font-bold text-gray-900 rounded-lg px-2.5 py-1 focus:outline-hidden focus:border-blue-500"
                 >
                   {teamSprints.map(s => (
                     <option key={s.id} value={s.id}>
@@ -187,8 +187,8 @@ export const SprintPlanningView: React.FC = () => {
                 </select>
                 <SprintStatusBadge status={currentSprint.status} />
               </div>
-              <p className="text-xs text-slate-300 italic pt-1">
-                Goal: "{currentSprint.goal}"
+              <p className="text-xs text-gray-600 italic pt-1">
+                Goal: &quot;{currentSprint.goal}&quot;
               </p>
             </div>
 
@@ -198,7 +198,7 @@ export const SprintPlanningView: React.FC = () => {
                 {currentSprint.status === 'PLANNED' && (
                   <button
                     onClick={handleStartSprint}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Start Sprint</span>
@@ -208,7 +208,7 @@ export const SprintPlanningView: React.FC = () => {
                 {currentSprint.status === 'ACTIVE' && (
                   <button
                     onClick={handleCompleteSprint}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Complete Sprint</span>
@@ -219,38 +219,38 @@ export const SprintPlanningView: React.FC = () => {
           </div>
 
           {/* Progress Bar & Telemetry */}
-          <div className="pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+          <div className="pt-3 border-t border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
             <div className="md:col-span-2 space-y-1.5">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-slate-400">Burn Progress</span>
-                <span className="text-white font-bold">{progressPercent}%</span>
+              <div className="flex justify-between text-xs font-medium">
+                <span className="text-gray-500">Committed Progress</span>
+                <span className="text-gray-900 font-bold">{progressPercent}%</span>
               </div>
-              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-linear-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-300"
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
 
-            <div className="text-xs font-mono">
-              <span className="text-slate-400 block text-[10px]">TIME WINDOW</span>
-              <span className="text-slate-200">
+            <div className="text-xs">
+              <span className="text-gray-500 block text-[11px] font-semibold uppercase tracking-wider">Time Window</span>
+              <span className="text-gray-900 font-medium">
                 {formatDate(currentSprint.start_date)} - {formatDate(currentSprint.end_date)}
               </span>
             </div>
 
-            <div className="text-xs font-mono">
-              <span className="text-slate-400 block text-[10px]">STORY POINTS</span>
-              <span className="text-slate-200">
+            <div className="text-xs">
+              <span className="text-gray-500 block text-[11px] font-semibold uppercase tracking-wider">Story Points</span>
+              <span className="text-gray-900 font-medium">
                 {completedPoints} / {totalPoints} committed pts
               </span>
             </div>
           </div>
         </div>
       ) : (
-        <div className="p-8 text-center bg-[#0e111a] border border-slate-800 rounded-xl text-slate-400 text-xs">
-          No sprints created for this subsystem yet. Click "Create Sprint" above to begin.
+        <div className="p-8 text-center bg-white border border-gray-200 rounded-xl text-gray-500 text-xs">
+          No sprints created for this subsystem yet. Click &quot;Create Sprint&quot; above to begin.
         </div>
       )}
 
@@ -260,15 +260,15 @@ export const SprintPlanningView: React.FC = () => {
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDropToBacklog}
-          className="bg-[#0b0d14] border border-[#1d2338] rounded-2xl p-4 shadow-lg flex flex-col min-h-[500px]"
+          className="bg-gray-50/70 border border-gray-200 rounded-xl p-4 shadow-xs flex flex-col min-h-[500px]"
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#181d2f] mb-3">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-3">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-slate-400" />
-              <h3 className="text-sm font-semibold text-white uppercase font-mono tracking-wider">
-                BACKLOG
+              <Layers className="w-4 h-4 text-gray-500" />
+              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                Backlog
               </h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-gray-700 border border-gray-200">
                 {backlogTasks.length} tasks
               </span>
             </div>
@@ -279,7 +279,7 @@ export const SprintPlanningView: React.FC = () => {
                   setTaskModalSprintId(null);
                   setIsTaskModalOpen(true);
                 }}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono"
+                className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-1 font-semibold"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Task</span>
@@ -287,9 +287,9 @@ export const SprintPlanningView: React.FC = () => {
             )}
           </div>
 
-          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[65vh]">
+          <div className="space-y-2 flex-1 overflow-y-auto max-h-[65vh]">
             {backlogTasks.length === 0 ? (
-              <div className="h-32 flex items-center justify-center text-center text-slate-600 text-xs italic border border-dashed border-slate-800/80 rounded-xl">
+              <div className="h-32 flex items-center justify-center text-center text-gray-400 text-xs italic border border-dashed border-gray-200 rounded-xl">
                 Backlog is empty. Add tasks or drop items here.
               </div>
             ) : (
@@ -299,16 +299,16 @@ export const SprintPlanningView: React.FC = () => {
                   draggable={canManage}
                   onDragStart={(e) => handleDragStart(e, task.id)}
                   onClick={() => setSelectedTaskId(task.id)}
-                  className="p-3 bg-[#0f121d] border border-[#21273c] hover:border-indigo-500/60 rounded-xl shadow-xs transition-all cursor-pointer group flex items-center justify-between gap-3"
+                  className="p-3 bg-white border border-gray-200 hover:border-blue-400 rounded-lg shadow-2xs transition-all cursor-pointer group flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <PriorityBadge priority={task.priority} size="sm" />
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-[10px] font-mono text-gray-500">
                         {task.story_points} pts
                       </span>
                     </div>
-                    <h4 className="text-xs font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors truncate">
+                    <h4 className="text-xs font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
                       {task.title}
                     </h4>
                   </div>
@@ -321,7 +321,7 @@ export const SprintPlanningView: React.FC = () => {
                         moveTaskToSprint(task.id, currentSprint.id);
                       }}
                       title={`Move into ${currentSprint.name}`}
-                      className="p-2 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800/60 transition-colors shrink-0"
+                      className="p-1.5 rounded-lg bg-gray-100 hover:bg-blue-50 text-gray-600 hover:text-blue-600 border border-gray-200 transition-colors shrink-0"
                     >
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -336,15 +336,15 @@ export const SprintPlanningView: React.FC = () => {
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDropToSprint}
-          className="bg-[#0b0d14] border border-[#1d2338] rounded-2xl p-4 shadow-lg flex flex-col min-h-[500px]"
+          className="bg-gray-50/70 border border-gray-200 rounded-xl p-4 shadow-xs flex flex-col min-h-[500px]"
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#181d2f] mb-3">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-3">
             <div className="flex items-center gap-2">
-              <Flag className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-semibold text-white uppercase font-mono tracking-wider">
-                {currentSprint ? currentSprint.name : 'SPRINT'}
+              <Flag className="w-4 h-4 text-blue-600" />
+              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                {currentSprint ? currentSprint.name : 'Sprint'}
               </h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                 {sprintTasks.length} committed ({totalPoints} pts)
               </span>
             </div>
@@ -355,7 +355,7 @@ export const SprintPlanningView: React.FC = () => {
                   setTaskModalSprintId(currentSprint.id);
                   setIsTaskModalOpen(true);
                 }}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono"
+                className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-1 font-semibold"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Task</span>
@@ -363,10 +363,10 @@ export const SprintPlanningView: React.FC = () => {
             )}
           </div>
 
-          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[65vh]">
+          <div className="space-y-2 flex-1 overflow-y-auto max-h-[65vh]">
             {sprintTasks.length === 0 ? (
-              <div className="h-32 flex items-center justify-center text-center text-slate-600 text-xs italic border border-dashed border-slate-800/80 rounded-xl">
-                No tasks in this sprint. Drag tasks from Backlog or click "+ Add Task".
+              <div className="h-32 flex items-center justify-center text-center text-gray-400 text-xs italic border border-dashed border-gray-200 rounded-xl">
+                No tasks in this sprint. Drag tasks from Backlog or click &quot;+ Add Task&quot;.
               </div>
             ) : (
               sprintTasks.map(task => (
@@ -375,22 +375,22 @@ export const SprintPlanningView: React.FC = () => {
                   draggable={canManage}
                   onDragStart={(e) => handleDragStart(e, task.id)}
                   onClick={() => setSelectedTaskId(task.id)}
-                  className="p-3 bg-[#0f121d] border border-[#21273c] hover:border-indigo-500/60 rounded-xl shadow-xs transition-all cursor-pointer group flex items-center justify-between gap-3"
+                  className="p-3 bg-white border border-gray-200 hover:border-blue-400 rounded-lg shadow-2xs transition-all cursor-pointer group flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <TaskStatusBadge status={task.status} size="sm" />
                       <PriorityBadge priority={task.priority} size="sm" />
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-[10px] font-mono text-gray-500">
                         {task.story_points} pts
                       </span>
                     </div>
-                    <h4 className="text-xs font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors truncate">
+                    <h4 className="text-xs font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
                       {task.title}
                     </h4>
                     <div className="flex items-center gap-2 mt-2">
                       <AvatarGroup users={task.assignees} size="xs" />
-                      <span className="text-[10px] font-mono text-slate-400 truncate">
+                      <span className="text-[10px] text-gray-500 truncate">
                         {task.assignees.map(a => a.full_name.split(' ')[0]).join(', ') || 'Unassigned'}
                       </span>
                     </div>
@@ -404,7 +404,7 @@ export const SprintPlanningView: React.FC = () => {
                         moveTaskToSprint(task.id, null);
                       }}
                       title="Move back to Backlog"
-                      className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 transition-colors shrink-0"
+                      className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 transition-colors shrink-0"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
                     </button>

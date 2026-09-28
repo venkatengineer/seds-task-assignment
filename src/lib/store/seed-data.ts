@@ -1,4 +1,4 @@
-import { Profile, Team, Sprint, Task, TaskComment, Announcement, ActivityLog, NotificationItem, LeadMessage, OpenTaskInterest, TaskStatus, TaskPriority } from '@/types/database';
+import { Profile, Team, Sprint, Task, TaskComment, Announcement, ActivityLog, NotificationItem, LeadMessage, OpenTaskInterest, TaskStatus, TaskPriority, NotificationPreferences } from '@/types/database';
 
 export const SEED_TEAMS: Team[] = [
   {
@@ -101,6 +101,20 @@ export const SEED_PROFILES: Profile[] = [
     role: 'OFFICE_BEARER',
     team_id: null,
     title: 'Vice President',
+    account_status: 'ACTIVE',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-09-20T00:00:00Z',
+  },
+  // System Administrator (Role: ADMIN)
+  {
+    id: '22222222-2222-2222-2222-222222222299',
+    full_name: 'Kavitha Raman',
+    email: 'admin@seds.in',
+    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    role: 'ADMIN',
+    team_id: null,
+    title: 'System Administrator',
+    account_status: 'ACTIVE',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-09-20T00:00:00Z',
   },
@@ -745,36 +759,108 @@ export const SEED_ACTIVITY_LOGS: ActivityLog[] = [
   },
 ];
 
+export const SEED_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  user_id: 'default',
+  task_assignments: true,
+  task_comments: true,
+  open_tasks: true,
+  sprint_updates: true,
+  team_announcements: true,
+  manual_notifications: true,
+  deadline_reminders: true,
+  push_notifications: false,
+  in_app_notifications: true,
+};
+
 export const SEED_NOTIFICATIONS: NotificationItem[] = [
   {
     id: '99999999-9999-9999-9999-999999999901',
-    user_id: '22222222-2222-2222-2222-222222222205', // Arjun
-    title: 'Assigned to collaborative task',
+    recipient_id: '22222222-2222-2222-2222-222222222205', // Arjun
+    user_id: '22222222-2222-2222-2222-222222222205',
+    sender_id: '22222222-2222-2222-2222-222222222203', // Vikram Rao
+    title: 'New collaborative task assigned',
     message: 'Vikram Rao assigned you to "Build telemetry dashboard" along with Siddharth Verma and Priya Nair.',
-    type: 'task_assigned',
-    link: '/tasks/44444444-4444-4444-4444-444444444401',
+    type: 'TASK_ASSIGNED',
+    priority: 'IMPORTANT',
+    related_task_id: '44444444-4444-4444-4444-444444444401',
+    link: '/tasks',
+    is_read: false,
     read: false,
-    created_at: '2026-09-22T09:10:00Z',
+    created_at: '2026-09-28T10:45:00Z',
   },
   {
     id: '99999999-9999-9999-9999-999999999902',
+    recipient_id: '22222222-2222-2222-2222-222222222205', // Arjun
     user_id: '22222222-2222-2222-2222-222222222205',
-    title: 'Task Blocked: PDU Latch',
-    message: 'Power distribution unit overcurrent protection latch has been marked BLOCKED.',
-    type: 'task_status_changed',
-    link: '/tasks/44444444-4444-4444-4444-444444444405',
+    sender_id: '22222222-2222-2222-2222-222222222207', // Siddharth
+    title: 'New technical comment',
+    message: 'Siddharth Verma commented on "Build telemetry dashboard": Added 3D attitude gyro model widget.',
+    type: 'TASK_COMMENT',
+    priority: 'INFO',
+    related_task_id: '44444444-4444-4444-4444-444444444401',
+    link: '/tasks',
+    is_read: false,
     read: false,
-    created_at: '2026-09-27T08:30:00Z',
+    created_at: '2026-09-28T10:20:00Z',
   },
   {
     id: '99999999-9999-9999-9999-999999999903',
+    recipient_id: '22222222-2222-2222-2222-222222222205', // Arjun
     user_id: '22222222-2222-2222-2222-222222222205',
-    title: 'New Org Announcement',
-    message: 'Dr. Ananya Sharma published: Q3 Flight Readiness Review Scheduled',
-    type: 'announcement',
+    sender_id: '22222222-2222-2222-2222-222222222201', // Dr. Ananya Sharma
+    title: 'Organization Announcement',
+    message: 'Dr. Ananya Sharma published: Q3 Flight Readiness Review Scheduled for all teams.',
+    type: 'ORG_ANNOUNCEMENT',
+    priority: 'URGENT',
     link: '/communication',
+    is_read: false,
     read: false,
-    created_at: '2026-09-25T11:00:00Z',
+    created_at: '2026-09-28T09:00:00Z',
+  },
+  {
+    id: '99999999-9999-9999-9999-999999999904',
+    recipient_id: '22222222-2222-2222-2222-222222222205', // Arjun
+    user_id: '22222222-2222-2222-2222-222222222205',
+    sender_id: '22222222-2222-2222-2222-222222222203',
+    title: 'Sprint 04 is now active',
+    message: 'Sprint 04 (CanSat Sub-Orbital Payload Integration) has officially started.',
+    type: 'SPRINT_STARTED',
+    priority: 'INFO',
+    related_sprint_id: '33333333-3333-3333-3333-333333333301',
+    link: '/sprints',
+    is_read: true,
+    read: true,
+    created_at: '2026-09-24T09:00:00Z',
+  },
+  {
+    id: '99999999-9999-9999-9999-999999999905',
+    recipient_id: '22222222-2222-2222-2222-222222222203', // Vikram Rao (Lead)
+    user_id: '22222222-2222-2222-2222-222222222203',
+    sender_id: '22222222-2222-2222-2222-222222222205', // Arjun
+    title: 'New Open Task Applicant',
+    message: 'Arjun Kumar expressed interest in "Build SEDS Event Registration Page".',
+    type: 'TASK_INTEREST',
+    priority: 'IMPORTANT',
+    related_task_id: '44444444-4444-4444-4444-444444444412',
+    link: '/open-tasks',
+    is_read: false,
+    read: false,
+    created_at: '2026-09-28T09:30:00Z',
+  },
+  {
+    id: '99999999-9999-9999-9999-999999999906',
+    recipient_id: '22222222-2222-2222-2222-222222222201', // President
+    user_id: '22222222-2222-2222-2222-222222222201',
+    sender_id: '22222222-2222-2222-2222-222222222210',
+    title: 'Hardware Bottleneck Alert',
+    message: 'LNA signal-to-noise benchmark marked BLOCKED in Ground Station subsystem.',
+    type: 'TASK_BLOCKED',
+    priority: 'URGENT',
+    related_task_id: '44444444-4444-4444-4444-444444444411',
+    link: '/tasks',
+    is_read: false,
+    read: false,
+    created_at: '2026-09-28T08:15:00Z',
   },
 ];
 

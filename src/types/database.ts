@@ -1,4 +1,6 @@
-export type UserRole = 'OFFICE_BEARER' | 'TEAM_LEAD' | 'TEAM_MEMBER';
+export type UserRole = 'OFFICE_BEARER' | 'TEAM_LEAD' | 'TEAM_MEMBER' | 'ADMIN';
+
+export type AccountStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED';
 
 export type SprintStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
 
@@ -18,8 +20,9 @@ export interface Profile {
   email: string;
   avatar_url: string | null;
   role: UserRole;
-  team_id: string | null; // null for Office Bearers who oversee the whole organization
+  team_id: string | null; // null for Office Bearers and Admins
   title: string | null;   // e.g. "President", "Propulsion Lead", "Avionics Specialist"
+  account_status?: AccountStatus;
   created_at: string;
   updated_at: string;
 }
@@ -155,7 +158,12 @@ export interface ActivityLog {
     | 'interest_expressed'
     | 'interest_approved'
     | 'interest_rejected'
-    | 'interest_withdrawn';
+    | 'interest_withdrawn'
+    | 'broadcast_sent'
+    | 'user_created'
+    | 'user_updated'
+    | 'user_suspended'
+    | 'user_activated';
   metadata: Record<string, unknown>;
   created_at: string;
   actor?: Profile;
@@ -190,21 +198,84 @@ export interface LeadMessage {
   sender?: Profile;
 }
 
+export type NotificationType =
+  | 'TASK_ASSIGNED'
+  | 'TASK_UPDATED'
+  | 'TASK_COMPLETED'
+  | 'TASK_COMMENT'
+  | 'TASK_BLOCKED'
+  | 'OPEN_TASK_PUBLISHED'
+  | 'TASK_INTEREST'
+  | 'INTEREST_APPROVED'
+  | 'INTEREST_REJECTED'
+  | 'SPRINT_STARTED'
+  | 'SPRINT_ENDING'
+  | 'SPRINT_COMPLETED'
+  | 'TEAM_ANNOUNCEMENT'
+  | 'ORG_ANNOUNCEMENT'
+  | 'MANUAL_NOTIFICATION'
+  // Legacy aliases and lowercase variants
+  | 'task_assigned' 
+  | 'task_status_changed' 
+  | 'sprint_update' 
+  | 'sprint_started'
+  | 'sprint_completed'
+  | 'announcement' 
+  | 'comment'
+  | 'open_task_interest'
+  | 'open_task_approved'
+  | 'open_task_rejected'
+  | 'manual_broadcast';
+
+export type NotificationPriority = 'INFO' | 'IMPORTANT' | 'URGENT';
+
 export interface NotificationItem {
   id: string;
-  user_id: string;
+  recipient_id?: string;
+  user_id?: string;
+  sender_id?: string | null;
+  actor_id?: string | null;
+  team_id?: string | null;
+  task_id?: string | null;
+  sprint_id?: string | null;
   title: string;
   message: string;
-  type: 
-    | 'task_assigned' 
-    | 'task_status_changed' 
-    | 'sprint_update' 
-    | 'announcement' 
-    | 'comment'
-    | 'open_task_interest'
-    | 'open_task_approved'
-    | 'open_task_rejected';
+  type: NotificationType;
+  priority?: NotificationPriority;
+  related_task_id?: string | null;
+  related_sprint_id?: string | null;
+  related_team_id?: string | null;
   link?: string;
-  read: boolean;
+  action_url?: string;
+  is_read?: boolean;
+  read?: boolean;
+  read_at?: string | null;
   created_at: string;
+  sender?: Profile;
+}
+
+export interface PushSubscriptionItem {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh_key: string;
+  auth_key: string;
+  device_name: string;
+  user_agent?: string;
+  created_at: string;
+  updated_at?: string;
+  last_used_at?: string;
+}
+
+export interface NotificationPreferences {
+  user_id: string;
+  task_assignments: boolean;
+  task_comments: boolean;
+  open_tasks: boolean;
+  sprint_updates: boolean;
+  team_announcements: boolean;
+  manual_notifications: boolean;
+  deadline_reminders: boolean;
+  push_notifications: boolean;
+  in_app_notifications: boolean;
 }

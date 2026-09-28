@@ -56,12 +56,12 @@ export const AnalyticsView: React.FC = () => {
 
   // Task Status Distribution Chart Data
   const statusData = [
-    { name: 'To Do', count: todoTasks, fill: '#38bdf8' },
-    { name: 'In Progress', count: inProgressTasks, fill: '#6366f1' },
-    { name: 'In Review', count: inReviewTasks, fill: '#a855f7' },
-    { name: 'Completed', count: completedTasks, fill: '#10b981' },
-    { name: 'Blocked', count: blockedTasks, fill: '#f43f5e' },
-    { name: 'Backlog', count: backlogTasks, fill: '#64748b' },
+    { name: 'To Do', count: todoTasks, fill: '#60A5FA' },
+    { name: 'In Progress', count: inProgressTasks, fill: '#2563EB' },
+    { name: 'In Review', count: inReviewTasks, fill: '#8B5CF6' },
+    { name: 'Completed', count: completedTasks, fill: '#10B981' },
+    { name: 'Blocked', count: blockedTasks, fill: '#EF4444' },
+    { name: 'Backlog', count: backlogTasks, fill: '#9CA3AF' },
   ];
 
   // Burndown Chart Simulation Data (14-day sprint trajectory)
@@ -80,7 +80,7 @@ export const AnalyticsView: React.FC = () => {
   const teamEngineers = useMemo(() => {
     return allProfiles.filter(p => {
       if (selectedTeamId !== 'ALL') return p.team_id === selectedTeamId;
-      return p.role !== 'OFFICE_BEARER';
+      return p.role !== 'OFFICE_BEARER' && p.role !== 'ADMIN';
     });
   }, [allProfiles, selectedTeamId]);
 
@@ -97,33 +97,33 @@ export const AnalyticsView: React.FC = () => {
   }, [teamEngineers, relevantTasks]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-150">
+    <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header & Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1b2135]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded">
-              PERFORMANCE & BURNDOWN TELEMETRY
+            <span className="text-[11px] font-semibold uppercase bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded">
+              Performance & Velocity
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            SEDS Analytics & Velocity
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            SEDS Analytics & Metrics
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Sprint burn rates, task distribution models, and subsystem engineering output.
+          <p className="text-xs text-gray-500 mt-1">
+            Sprint burn rates, task distribution models, and team delivery velocity.
           </p>
         </div>
 
         {/* Subsystem Filter */}
         {isOfficeBearer && (
           <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <Filter className="w-3.5 h-3.5 text-gray-400" />
             <select
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+              className="bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium shadow-xs"
             >
-              <option value="ALL">All Subsystems</option>
+              <option value="ALL">All Teams</option>
               {teams.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
@@ -134,58 +134,58 @@ export const AnalyticsView: React.FC = () => {
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="p-3.5 bg-[#0b0e17] border border-[#1e2439] rounded-xl">
-          <span className="text-[11px] font-mono text-slate-400 block uppercase">TOTAL TASKS</span>
-          <span className="text-2xl font-bold font-mono text-white mt-1 block">{relevantTasks.length}</span>
-          <span className="text-[10px] text-slate-400 font-mono">Assigned & Backlog</span>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+          <span className="text-[11px] font-mono text-gray-500 block uppercase font-medium">TOTAL TASKS</span>
+          <span className="text-2xl font-bold font-mono text-gray-900 mt-1 block">{relevantTasks.length}</span>
+          <span className="text-[10px] text-gray-400 font-mono">Assigned & Backlog</span>
         </div>
 
-        <div className="p-3.5 bg-[#0b0e17] border border-[#1e2439] rounded-xl">
-          <span className="text-[11px] font-mono text-emerald-400 block uppercase">COMPLETED</span>
-          <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">{completedTasks}</span>
-          <span className="text-[10px] text-emerald-400 font-mono">{completionPercentage}% rate</span>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+          <span className="text-[11px] font-mono text-emerald-600 block uppercase font-medium">COMPLETED</span>
+          <span className="text-2xl font-bold font-mono text-emerald-600 mt-1 block">{completedTasks}</span>
+          <span className="text-[10px] text-emerald-600 font-mono">{completionPercentage}% rate</span>
         </div>
 
-        <div className="p-3.5 bg-[#0b0e17] border border-[#1e2439] rounded-xl">
-          <span className="text-[11px] font-mono text-indigo-400 block uppercase">POINTS BURNED</span>
-          <span className="text-2xl font-bold font-mono text-indigo-400 mt-1 block">{completedPoints}</span>
-          <span className="text-[10px] text-slate-400 font-mono">of {totalPoints} total pts</span>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+          <span className="text-[11px] font-mono text-blue-600 block uppercase font-medium">POINTS BURNED</span>
+          <span className="text-2xl font-bold font-mono text-blue-600 mt-1 block">{completedPoints}</span>
+          <span className="text-[10px] text-gray-400 font-mono">of {totalPoints} total pts</span>
         </div>
 
-        <div className="p-3.5 bg-[#0b0e17] border border-[#1e2439] rounded-xl">
-          <span className="text-[11px] font-mono text-sky-400 block uppercase">IN PROGRESS</span>
-          <span className="text-2xl font-bold font-mono text-sky-400 mt-1 block">{inProgressTasks}</span>
-          <span className="text-[10px] text-slate-400 font-mono">Active engineering</span>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+          <span className="text-[11px] font-mono text-sky-600 block uppercase font-medium">IN PROGRESS</span>
+          <span className="text-2xl font-bold font-mono text-sky-600 mt-1 block">{inProgressTasks}</span>
+          <span className="text-[10px] text-gray-400 font-mono">Active tasks</span>
         </div>
 
-        <div className="p-3.5 bg-[#0b0e17] border border-[#1e2439] rounded-xl">
-          <span className="text-[11px] font-mono text-amber-400 block uppercase">OVERDUE</span>
-          <span className="text-2xl font-bold font-mono text-amber-400 mt-1 block">{overdueTasks}</span>
-          <span className="text-[10px] text-amber-400 font-mono">Requires attention</span>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+          <span className="text-[11px] font-mono text-amber-600 block uppercase font-medium">OVERDUE</span>
+          <span className="text-2xl font-bold font-mono text-amber-600 mt-1 block">{overdueTasks}</span>
+          <span className="text-[10px] text-amber-600 font-mono">Requires attention</span>
         </div>
 
-        <div className="p-3.5 bg-rose-950/20 border border-rose-900/40 rounded-xl">
-          <span className="text-[11px] font-mono text-rose-300 block uppercase">BLOCKED</span>
-          <span className="text-2xl font-bold font-mono text-rose-400 mt-1 block">{blockedTasks}</span>
-          <span className="text-[10px] text-rose-400 font-mono">Impediments logged</span>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+          <span className="text-[11px] font-mono text-rose-600 block uppercase font-medium">BLOCKED</span>
+          <span className="text-2xl font-bold font-mono text-rose-600 mt-1 block">{blockedTasks}</span>
+          <span className="text-[10px] text-rose-500 font-mono">Impediments logged</span>
         </div>
       </div>
 
       {/* Main Charts: Burndown & Status Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sprint Burndown Chart */}
-        <div className="p-5 bg-[#0b0e17] border border-[#1e2439] rounded-2xl shadow-lg space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div>
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-blue-600" />
                 <span>Sprint Burndown (Story Points)</span>
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Ideal linear burn line vs actual remaining points.
               </p>
             </div>
-            <span className="text-xs font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
               Active Sprint
             </span>
           </div>
@@ -193,17 +193,17 @@ export const AnalyticsView: React.FC = () => {
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={burndownData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f253d" />
-                <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#64748b" tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <XAxis dataKey="day" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0d101a', borderColor: '#2b3352', borderRadius: '8px', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
                 />
                 <Line
                   type="monotone"
                   dataKey="ideal"
                   name="Ideal Burn"
-                  stroke="#64748b"
+                  stroke="#9CA3AF"
                   strokeDasharray="5 5"
                   strokeWidth={2}
                   dot={false}
@@ -212,9 +212,9 @@ export const AnalyticsView: React.FC = () => {
                   type="monotone"
                   dataKey="actual"
                   name="Actual Remaining"
-                  stroke="#6366f1"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: '#6366f1' }}
+                  stroke="#2563EB"
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: '#2563EB' }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -222,15 +222,15 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {/* Task Status Distribution Bar Chart */}
-        <div className="p-5 bg-[#0b0e17] border border-[#1e2439] rounded-2xl shadow-lg space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div>
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-600" />
                 <span>Task Distribution by Status</span>
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Breakdown across state machines.
+              <p className="text-xs text-gray-500 mt-0.5">
+                Breakdown across workflow states.
               </p>
             </div>
           </div>
@@ -238,11 +238,11 @@ export const AnalyticsView: React.FC = () => {
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f253d" />
-                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} />
-                <YAxis stroke="#64748b" tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <XAxis dataKey="name" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0d101a', borderColor: '#2b3352', borderRadius: '8px', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
                 />
                 <Bar dataKey="count" name="Tasks" radius={[4, 4, 0, 0]}>
                   {statusData.map((entry, index) => (
@@ -256,15 +256,15 @@ export const AnalyticsView: React.FC = () => {
       </div>
 
       {/* Member Workload Distribution Chart */}
-      <div className="p-5 bg-[#0b0e17] border border-[#1e2439] rounded-2xl shadow-lg space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div>
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-indigo-400" />
-              <span>Workload Allocation by Engineer (Story Points)</span>
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-600" />
+              <span>Workload Allocation by Member (Story Points)</span>
             </h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Assigned story points per subsystem team engineer.
+            <p className="text-xs text-gray-500 mt-0.5">
+              Assigned story points per team member.
             </p>
           </div>
         </div>
@@ -272,13 +272,13 @@ export const AnalyticsView: React.FC = () => {
         <div className="h-60 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={workloadData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f253d" />
-              <XAxis type="number" stroke="#64748b" tick={{ fontSize: 11 }} />
-              <YAxis dataKey="name" type="category" stroke="#94a3b8" tick={{ fontSize: 11 }} width={80} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+              <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+              <YAxis dataKey="name" type="category" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} width={80} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0d101a', borderColor: '#2b3352', borderRadius: '8px', fontSize: '12px' }}
+                contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
               />
-              <Bar dataKey="points" name="Story Points" fill="#818cf8" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="points" name="Story Points" fill="#3B82F6" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

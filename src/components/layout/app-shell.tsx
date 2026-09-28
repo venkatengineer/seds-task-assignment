@@ -22,7 +22,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#07080d] text-slate-100 flex">
+    <div className="min-h-screen bg-[#F8F9FA] text-[#171717] flex">
       {/* Sidebar */}
       <Sidebar
         isMobileOpen={isMobileSidebarOpen}
@@ -30,7 +30,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col lg:pl-64 min-w-0">
+      <div className="flex-1 flex flex-col lg:pl-60 min-w-0">
         <Topbar
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenCreateTask={() => setIsCreateTaskOpen(true)}

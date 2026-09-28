@@ -41,7 +41,7 @@ export const OpenTasksView: React.FC = () => {
   const [applyingTaskId, setApplyingTaskId] = useState<string | null>(null);
   const [pitchMessage, setPitchMessage] = useState('');
 
-  // Active view tab for Leads / Bearers: 'published' | 'applicants' | 'all'
+  // Active view tab for Leads / Bearers: 'published' | 'applicants'
   const [leadTab, setLeadTab] = useState<'published' | 'applicants'>('published');
 
   // Filters
@@ -119,80 +119,75 @@ export const OpenTasksView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-amber-950/40 via-indigo-950/30 to-slate-900 border border-amber-900/40 p-6">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono uppercase tracking-wider">
-              <Compass className="w-3.5 h-3.5" />
-              <span>SEDS Open Task Auction & Discovery</span>
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              {isLeadOrBearer ? 'Open Task Management' : 'Open Tasks Board'}
-            </h1>
-            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              {isLeadOrBearer 
-                ? 'Publish voluntary subsystem tasks, specify required skills and capacities, and review member applications to staff missions.'
-                : 'Discover voluntary tasks within your subsystem. Step up, showcase your engineering skillset, and gain hands-on aerospace experience.'}
-            </p>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold uppercase tracking-wider">
+            <Compass className="w-3.5 h-3.5" />
+            <span>Open Task System</span>
           </div>
-
-          <div className="flex items-center gap-2.5">
-            {isLeadOrBearer && (
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-950/50 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Publish Open Task</span>
-              </button>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {isLeadOrBearer ? 'Open Task Management & Staffing' : 'Open Tasks Board'}
+          </h1>
+          <p className="text-xs text-gray-500 max-w-2xl leading-relaxed">
+            {isLeadOrBearer 
+              ? 'Publish voluntary subsystem tasks, specify required skills and capacities, and review member applications to staff missions.'
+              : 'Discover available tasks within your team. Volunteer for tasks aligned with your engineering skillset and take ownership of critical items.'}
+          </p>
         </div>
 
-        {/* Decorative Grid Accent */}
-        <div className="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.12),transparent_70%)] pointer-events-none" />
+        <div className="flex items-center gap-2.5">
+          {isLeadOrBearer && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Publish Open Task</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-          <div className="text-[11px] font-mono text-slate-400 uppercase">Available Open Tasks</div>
-          <div className="text-2xl font-bold text-white mt-1">
+        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-xs">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Available Open Tasks</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">
             {openTasks.filter(t => t.open_task_status === 'PUBLISHED').length}
           </div>
-          <div className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-blue-600 mt-1 flex items-center gap-1 font-medium">
             <Sparkles className="w-3 h-3" /> Ready for claims
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-          <div className="text-[11px] font-mono text-slate-400 uppercase">Pending Applications</div>
-          <div className="text-2xl font-bold text-amber-400 mt-1">
+        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-xs">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending Applications</div>
+          <div className="text-2xl font-bold text-amber-600 mt-1">
             {pendingInterests.length}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1 font-medium">
             <Clock className="w-3 h-3" /> Awaiting review
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-          <div className="text-[11px] font-mono text-slate-400 uppercase">Assigned via Auction</div>
-          <div className="text-2xl font-bold text-emerald-400 mt-1">
+        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-xs">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned via Auction</div>
+          <div className="text-2xl font-bold text-emerald-600 mt-1">
             {openTasks.filter(t => t.open_task_status === 'ASSIGNED').length}
           </div>
-          <div className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Staffed & In Flight
+          <div className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-medium">
+            <CheckCircle2 className="w-3 h-3" /> Staffed & active
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-          <div className="text-[11px] font-mono text-slate-400 uppercase">My Team Subsystem</div>
-          <div className="text-base font-bold text-indigo-300 mt-1 truncate">
-            {currentUser.team_id ? teams.find(t => t.id === currentUser.team_id)?.name : 'All Subsystems (Org-wide)'}
+        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-xs">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Team Subsystem</div>
+          <div className="text-sm font-bold text-gray-900 mt-1 truncate">
+            {currentUser.team_id ? teams.find(t => t.id === currentUser.team_id)?.name : 'Organization-Wide'}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">
+          <div className="text-[11px] text-gray-500 mt-1 truncate">
             {currentUser.title || currentUser.role}
           </div>
         </div>
@@ -200,31 +195,31 @@ export const OpenTasksView: React.FC = () => {
 
       {/* Lead Tabs (if Team Lead or Office Bearer) */}
       {isLeadOrBearer && (
-        <div className="flex border-b border-slate-800 gap-4">
+        <div className="flex border-b border-gray-200 gap-4">
           <button
             onClick={() => setLeadTab('published')}
-            className={`pb-3 text-xs font-mono font-medium transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
               leadTab === 'published'
-                ? 'border-amber-500 text-amber-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-blue-600 text-blue-600 font-semibold'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
             <Compass className="w-4 h-4" />
-            <span>Published Open Tasks ({filteredOpenTasks.length})</span>
+            <span>Published Tasks ({filteredOpenTasks.length})</span>
           </button>
 
           <button
             onClick={() => setLeadTab('applicants')}
-            className={`pb-3 text-xs font-mono font-medium transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-2.5 text-xs font-medium transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
               leadTab === 'applicants'
-                ? 'border-amber-500 text-amber-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-blue-600 text-blue-600 font-semibold'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
             <Users className="w-4 h-4" />
             <span>Applicant Requests</span>
             {pendingInterests.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500 text-slate-950 font-bold">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">
                 {pendingInterests.length}
               </span>
             )}
@@ -233,15 +228,15 @@ export const OpenTasksView: React.FC = () => {
       )}
 
       {/* Search and Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-white rounded-xl border border-gray-200 shadow-xs">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by title, description, or skill (e.g. React, CFD, 4NEC2)..."
-            className="w-full bg-slate-950/70 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+            placeholder="Search by title, description, or skill (e.g. React, CFD, CAD)..."
+            className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500"
           />
         </div>
 
@@ -251,7 +246,7 @@ export const OpenTasksView: React.FC = () => {
             <select
               value={selectedTeamFilter}
               onChange={(e) => setSelectedTeamFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 focus:outline-hidden"
             >
               <option value="ALL">All Subsystems</option>
               {teams.map(t => (
@@ -265,7 +260,7 @@ export const OpenTasksView: React.FC = () => {
             <select
               value={selectedSkillFilter}
               onChange={(e) => setSelectedSkillFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 focus:outline-hidden"
             >
               <option value="ALL">All Skills</option>
               {allSkills.map(sk => (
@@ -281,17 +276,17 @@ export const OpenTasksView: React.FC = () => {
         /* Applicant Queue Tab for Leads */
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider font-mono">
+            <h2 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Pending Applicant Requests ({pendingInterests.length})
             </h2>
           </div>
 
           {pendingInterests.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-900/30 border border-dashed border-slate-800 space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500/60 mx-auto" />
-              <h3 className="text-sm font-medium text-slate-300">All applicant requests reviewed</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                There are no pending open task interest requests waiting for approval in your subsystem queue.
+            <div className="p-12 text-center rounded-2xl bg-white border border-dashed border-gray-200 space-y-2">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+              <h3 className="text-sm font-semibold text-gray-900">All applicant requests reviewed</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                There are no pending open task interest requests waiting for approval in your queue.
               </p>
             </div>
           ) : (
@@ -307,21 +302,21 @@ export const OpenTasksView: React.FC = () => {
                 return (
                   <div
                     key={interest.id}
-                    className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-slate-700 transition-all space-y-4"
+                    className="p-4 rounded-xl bg-white border border-gray-200 hover:border-blue-300 transition-all space-y-3.5 shadow-xs"
                   >
                     {/* Task context header */}
-                    <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-3">
+                    <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
                       <div>
-                        <div className="text-[10px] font-mono text-amber-400 uppercase tracking-wider">
-                          OPEN TASK APPLICATION
+                        <div className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">
+                          Open Task Application
                         </div>
                         <h4 
                           onClick={() => setSelectedTaskId(task.id)}
-                          className="text-sm font-bold text-white hover:text-amber-300 transition-colors cursor-pointer"
+                          className="text-sm font-bold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
                         >
                           {task.title}
                         </h4>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                        <div className="text-[11px] text-gray-500 mt-0.5">
                           {task.team_name} • {task.story_points} Points • {capacityRemaining} spot{capacityRemaining === 1 ? '' : 's'} remaining
                         </div>
                       </div>
@@ -333,12 +328,12 @@ export const OpenTasksView: React.FC = () => {
                       <UserAvatar user={applicant} size="sm" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white text-xs">{applicant.full_name}</span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">
+                          <span className="font-semibold text-gray-900 text-xs">{applicant.full_name}</span>
+                          <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-gray-100 text-gray-600 border border-gray-200">
                             {applicant.title || applicant.role}
                           </span>
                         </div>
-                        <div className="text-[11px] text-indigo-400 mt-0.5 flex items-center gap-1 font-mono">
+                        <div className="text-[11px] text-blue-600 mt-0.5 flex items-center gap-1 font-medium">
                           <Award className="w-3 h-3" />
                           <span>{completedCount} completed tasks in SEDS</span>
                         </div>
@@ -346,20 +341,20 @@ export const OpenTasksView: React.FC = () => {
                     </div>
 
                     {/* Member's Pitch Message */}
-                    <div className="p-3 bg-slate-950/70 rounded-lg border border-slate-800 text-xs text-slate-300 italic">
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700 italic">
                       &quot;{interest.message}&quot;
                     </div>
 
                     {/* Lead Decision Action Buttons */}
                     <div className="flex items-center justify-between pt-2">
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-[11px] text-gray-400">
                         Submitted {formatDate(interest.created_at)}
                       </span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => rejectInterest(interest.id)}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 hover:border-rose-700/60 text-slate-300 hover:text-rose-300 border border-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-700 border border-gray-200 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                         >
                           <XCircle className="w-3.5 h-3.5" />
                           <span>Reject</span>
@@ -367,7 +362,7 @@ export const OpenTasksView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => approveInterest(interest.id)}
-                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs shadow-emerald-950 transition-colors flex items-center gap-1.5 cursor-pointer"
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                         >
                           <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                           <span>Approve & Assign</span>
@@ -382,8 +377,8 @@ export const OpenTasksView: React.FC = () => {
 
           {/* Recently Resolved History */}
           {resolvedInterests.length > 0 && (
-            <div className="pt-6 border-t border-slate-800/80 space-y-3">
-              <h3 className="text-xs font-mono text-slate-400 uppercase tracking-wider">
+            <div className="pt-6 border-t border-gray-200 space-y-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Reviewed Decisions ({resolvedInterests.length})
               </h3>
               <div className="space-y-2">
@@ -393,25 +388,25 @@ export const OpenTasksView: React.FC = () => {
                   return (
                     <div 
                       key={res.id} 
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/40 border border-slate-800/60 text-xs"
+                      className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-200 text-xs shadow-2xs"
                     >
                       <div className="flex items-center gap-2">
                         <UserAvatar user={u} size="xs" />
-                        <span className="text-white font-medium">{u?.full_name}</span>
-                        <span className="text-slate-400">applied for</span>
-                        <span className="text-indigo-300 font-mono">{t?.title}</span>
+                        <span className="text-gray-900 font-semibold">{u?.full_name}</span>
+                        <span className="text-gray-400">applied for</span>
+                        <span className="text-gray-700 font-medium">{t?.title}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {res.status === 'APPROVED' ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/60 border border-emerald-800 text-emerald-300">
-                            APPROVED
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 border border-emerald-200 text-emerald-700">
+                            Approved
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950/60 border border-rose-800 text-rose-300">
-                            REJECTED
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-red-50 border border-red-200 text-red-700">
+                            Rejected
                           </span>
                         )}
-                        <span className="text-[10px] font-mono text-slate-400">
+                        <span className="text-[10px] text-gray-400">
                           {formatDate(res.updated_at)}
                         </span>
                       </div>
@@ -423,25 +418,25 @@ export const OpenTasksView: React.FC = () => {
           )}
         </div>
       ) : (
-        /* Published Open Tasks Grid (Available to Members and Leads) */
+        /* Published Open Tasks Grid */
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider font-mono">
+            <h2 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
               Available Open Tasks ({filteredOpenTasks.length})
             </h2>
           </div>
 
           {filteredOpenTasks.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-900/30 border border-dashed border-slate-800 space-y-3">
-              <Compass className="w-10 h-10 text-amber-500/50 mx-auto" />
-              <h3 className="text-sm font-medium text-slate-300">No open tasks found</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                There are currently no open tasks matching your filter criteria. Team Leads publish open tasks when new mission items are ready for staffing.
+            <div className="p-12 text-center rounded-2xl bg-white border border-dashed border-gray-200 space-y-2">
+              <Compass className="w-10 h-10 text-gray-400 mx-auto" />
+              <h3 className="text-sm font-semibold text-gray-900">No open tasks found</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                There are currently no open tasks matching your filter criteria. Team Leads publish open tasks when new items are ready for staffing.
               </p>
               {isLeadOrBearer && (
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-2 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold transition-colors cursor-pointer"
+                  className="mt-2 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Create Open Task Now
                 </button>
@@ -465,16 +460,16 @@ export const OpenTasksView: React.FC = () => {
                 return (
                   <div
                     key={task.id}
-                    className="flex flex-col justify-between p-4 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-amber-500/40 transition-all group"
+                    className="flex flex-col justify-between p-4 rounded-xl bg-white border border-gray-200 hover:border-blue-400 transition-all shadow-xs group"
                   >
                     <div className="space-y-3">
                       {/* Top Badges */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700">
                             OPEN TASK
                           </span>
-                          <span className="text-[10px] font-mono text-slate-400">
+                          <span className="text-[11px] text-gray-500 font-medium">
                             {task.team_name}
                           </span>
                         </div>
@@ -485,22 +480,35 @@ export const OpenTasksView: React.FC = () => {
                       <div>
                         <h3 
                           onClick={() => setSelectedTaskId(task.id)}
-                          className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors cursor-pointer line-clamp-2"
+                          className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors cursor-pointer line-clamp-2"
                         >
                           {task.title}
                         </h3>
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-3 leading-relaxed">
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-3 leading-relaxed">
                           {task.description || 'No additional technical specifications provided.'}
                         </p>
                       </div>
 
+                      {/* Meta Pill Strip: PRIORITY • POINTS • DEADLINE */}
+                      <div className="flex items-center gap-2 text-[11px] font-medium text-gray-500 py-1 border-y border-gray-100">
+                        <span className="text-gray-900 font-semibold">{task.priority}</span>
+                        <span>•</span>
+                        <span className="font-mono">{task.story_points} POINTS</span>
+                        {task.due_date && (
+                          <>
+                            <span>•</span>
+                            <span>{formatDate(task.due_date)}</span>
+                          </>
+                        )}
+                      </div>
+
                       {/* Required Skills Badges */}
                       {(task.skills && task.skills.length > 0) && (
-                        <div className="flex flex-wrap gap-1 pt-1">
+                        <div className="flex flex-wrap gap-1">
                           {task.skills.map(skill => (
                             <span 
                               key={skill}
-                              className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700/80 text-slate-300"
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-700 font-medium"
                             >
                               {skill}
                             </span>
@@ -508,74 +516,58 @@ export const OpenTasksView: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Details Strip */}
-                      <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 text-[11px] font-mono">
-                        <div>
-                          <span className="text-slate-400 block text-[9px]">POINTS</span>
-                          <span className="text-slate-200 font-semibold">{task.story_points} Points</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[9px]">DEADLINE</span>
-                          <span className="text-slate-200">{formatDate(task.due_date)}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[9px]">STAFFING</span>
-                          <span className={`font-semibold ${isFull ? 'text-rose-400' : 'text-amber-400'}`}>
-                            {assignedCount} / {maxMembers} {maxMembers === 1 ? 'member' : 'members'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[9px]">SPRINT</span>
-                          <span className="text-slate-300 truncate block">{task.sprint_name || 'Backlog'}</span>
-                        </div>
-                      </div>
-
-                      {/* Creator info */}
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                        <div className="flex items-center gap-1.5">
-                          <UserAvatar user={creator} size="xs" />
-                          <span className="truncate">Posted by {creator?.full_name?.split(' ')[0] || 'Lead'}</span>
-                        </div>
+                      {/* Staffing capacity line */}
+                      <div className="flex items-center justify-between text-xs text-gray-600 pt-1">
+                        <span className="font-medium">
+                          {assignedCount} / {maxMembers} {maxMembers === 1 ? 'member' : 'members'}
+                        </span>
                         {task.requires_approval !== false ? (
-                          <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                          <span className="text-[10px] text-amber-700 flex items-center gap-1 font-medium bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
                             <ShieldCheck className="w-3 h-3" /> Lead approval
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                          <span className="text-[10px] text-emerald-700 flex items-center gap-1 font-medium bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
                             <Sparkles className="w-3 h-3" /> Auto claim
                           </span>
                         )}
                       </div>
+
+                      {/* Posted by */}
+                      {creator && (
+                        <div className="text-[11px] text-gray-500 pt-0.5">
+                          Posted by <span className="font-medium text-gray-700">{creator.full_name}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Bottom CTA depending on role and application status */}
-                    <div className="pt-4 mt-3 border-t border-slate-800">
+                    {/* Bottom CTA */}
+                    <div className="pt-3 mt-3 border-t border-gray-100">
                       {isAssignedToMe ? (
-                        <div className="w-full py-2 px-3 rounded-lg bg-emerald-950/60 border border-emerald-700/60 text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                        <div className="w-full py-2 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                             <span>You are assigned</span>
                           </div>
                           <button
                             onClick={() => setSelectedTaskId(task.id)}
-                            className="text-[11px] underline text-emerald-300 hover:text-emerald-100 cursor-pointer"
+                            className="text-[11px] underline text-emerald-700 hover:text-emerald-900 cursor-pointer font-medium"
                           >
                             View
                           </button>
                         </div>
                       ) : hasPendingInterest ? (
                         <div className="w-full space-y-2">
-                          <div className="py-1.5 px-2.5 rounded-lg bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs flex items-center gap-2">
-                            <Clock className="w-3.5 h-3.5 shrink-0 animate-pulse text-amber-400" />
+                          <div className="py-2 px-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 shrink-0 text-amber-600 animate-pulse" />
                             <div className="leading-tight">
                               <span className="font-semibold block">Interest submitted</span>
-                              <span className="text-[10px] text-amber-400/80">Waiting for Team Lead approval</span>
+                              <span className="text-[11px] text-amber-700">Waiting for Team Lead approval</span>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => withdrawInterest(task.id)}
-                            className="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                            className="w-full py-1.5 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-medium border border-gray-200 transition-colors cursor-pointer"
                           >
                             Withdraw Interest
                           </button>
@@ -583,7 +575,7 @@ export const OpenTasksView: React.FC = () => {
                       ) : isFull ? (
                         <button
                           disabled
-                          className="w-full py-2 rounded-lg bg-slate-800/60 text-slate-500 text-xs font-semibold cursor-not-allowed border border-slate-800"
+                          className="w-full py-2 rounded-lg bg-gray-100 text-gray-400 text-xs font-medium cursor-not-allowed border border-gray-200"
                         >
                           Capacity Reached (Closed)
                         </button>
@@ -591,19 +583,18 @@ export const OpenTasksView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleOpenApplyModal(task)}
-                          className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-amber-950/40 flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                         >
-                          <Compass className="w-3.5 h-3.5" />
                           <span>Express Interest</span>
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => setSelectedTaskId(task.id)}
-                          className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-800 text-xs font-medium border border-gray-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <span>Manage Task & Applicants</span>
-                          <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                          <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
                         </button>
                       )}
                     </div>
@@ -622,19 +613,19 @@ export const OpenTasksView: React.FC = () => {
           onClose={() => setApplyingTaskId(null)}
           title="Express Interest in Open Task"
           description={`Submit your application to take responsibility for "${applyingTask.title}".`}
-          maxWidth="md"
+          size="md"
         >
-          <form onSubmit={handleConfirmExpressInterest} className="space-y-4">
-            <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2 text-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span>Subsystem: {applyingTask.team_name}</span>
-                <span>{applyingTask.story_points} Story Points</span>
+          <form onSubmit={handleConfirmExpressInterest} className="space-y-4 py-1">
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-gray-500 font-medium">
+                <span>Team: {applyingTask.team_name}</span>
+                <span>{applyingTask.story_points} Points</span>
               </div>
-              <div className="text-white font-medium">{applyingTask.title}</div>
+              <div className="text-gray-900 font-semibold">{applyingTask.title}</div>
               {applyingTask.skills && applyingTask.skills.length > 0 && (
                 <div className="flex flex-wrap gap-1 pt-1">
                   {applyingTask.skills.map(s => (
-                    <span key={s} className="px-1.5 py-0.5 rounded bg-amber-950/50 border border-amber-800/60 text-amber-300 text-[10px] font-mono">
+                    <span key={s} className="px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-700 text-[10px] font-medium">
                       {s}
                     </span>
                   ))}
@@ -643,33 +634,33 @@ export const OpenTasksView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-1">
-                YOUR PITCH & RELEVANT EXPERIENCE
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Your Pitch & Relevant Experience
               </label>
               <textarea
                 rows={3}
                 required
                 value={pitchMessage}
                 onChange={(e) => setPitchMessage(e.target.value)}
-                placeholder="e.g. I have experience with React and UI/UX styling. I'd love to take responsibility for this attendee workflow."
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none"
+                placeholder="e.g. I have experience with React and UI/UX styling. I'd love to build this component."
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 resize-none"
               />
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[11px] text-gray-500 mt-1 block">
                 Your Team Lead will review your pitch and completion history before approving assignment.
               </span>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setApplyingTaskId(null)}
-                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+                className="px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-800 text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-xs shadow-amber-950 flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Submit Interest</span>

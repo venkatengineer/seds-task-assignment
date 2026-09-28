@@ -46,9 +46,9 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
     return (
       <Drawer isOpen={Boolean(taskId)} onClose={onClose} title="Access Restricted">
         <div className="py-12 text-center space-y-3">
-          <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
-          <h4 className="text-base font-semibold text-white">Access Denied by SEDS Security Policy</h4>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          <ShieldAlert className="w-12 h-12 text-red-500 mx-auto" />
+          <h4 className="text-base font-semibold text-gray-900">Access Denied by SEDS Security Policy</h4>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
             You are logged in as a Team Member and are not an assigned engineer on this task. 
             Under SEDS REC policy, private tasks are restricted to assigned collaborators and team leads.
           </p>
@@ -90,33 +90,33 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       onClose={onClose}
       title={
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-indigo-400 uppercase tracking-wider">{task.team_name}</span>
-          <span className="text-slate-600">/</span>
-          <span className="text-xs font-mono text-slate-400">{task.sprint_name || 'Backlog'}</span>
+          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">{task.team_name}</span>
+          <span className="text-gray-300">/</span>
+          <span className="text-xs text-gray-500">{task.sprint_name || 'Backlog'}</span>
         </div>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-6 py-2">
         {/* Title and Badges */}
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <TaskStatusBadge status={task.status} />
             <PriorityBadge priority={task.priority} />
-            <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-              {task.story_points} Story Points
+            <span className="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200 font-mono font-medium">
+              {task.story_points} Points
             </span>
             {task.assignment_type === 'OPEN' && (
-              <span className="font-mono text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+              <span className="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1 font-medium">
                 <Compass className="w-3 h-3" />
                 <span>Open Task • {task.open_task_status || 'PUBLISHED'}</span>
               </span>
             )}
           </div>
-          <h2 className="text-lg font-bold text-white leading-snug">{task.title}</h2>
+          <h2 className="text-lg font-bold text-gray-900 leading-snug">{task.title}</h2>
           {task.skills && task.skills.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {task.skills.map(skill => (
-                <span key={skill} className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700">
+                <span key={skill} className="text-[11px] px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200">
                   {skill}
                 </span>
               ))}
@@ -126,58 +126,58 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
 
         {/* Open Task Staffing & Applications Section */}
         {task.assignment_type === 'OPEN' && (
-          <div className="p-3.5 bg-amber-950/20 border border-amber-900/40 rounded-xl space-y-3">
+          <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Compass className="w-4 h-4 text-amber-400" />
-                <h4 className="text-xs font-mono text-amber-300 uppercase">
+                <Compass className="w-4 h-4 text-amber-600" />
+                <h4 className="text-xs font-semibold text-amber-900 uppercase">
                   Staffing: {task.assignee_ids.length} / {task.max_assignees || 1} Assigned
                 </h4>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">
+              <span className="text-[11px] text-gray-500">
                 {task.requires_approval !== false ? 'Lead Approval Required' : 'Instant Auto-Claim'}
               </span>
             </div>
 
             {/* For Leads & Office Bearers: Review Applicants for this Task */}
             {Permissions.canManageOpenTask(currentUser, task) && (
-              <div className="space-y-2 pt-2 border-t border-amber-900/30">
-                <div className="text-[11px] font-mono text-slate-400 uppercase">
+              <div className="space-y-2 pt-2 border-t border-amber-200/80">
+                <div className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
                   Applicant Requests ({openTaskInterests.filter(i => i.task_id === task.id && i.status === 'INTERESTED').length})
                 </div>
                 {openTaskInterests.filter(i => i.task_id === task.id && i.status === 'INTERESTED').length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No pending applicant requests for this task.</p>
+                  <p className="text-xs text-gray-500 italic">No pending applicant requests for this task.</p>
                 ) : (
                   openTaskInterests
                     .filter(i => i.task_id === task.id && i.status === 'INTERESTED')
                     .map(interest => {
                       const applicant = allProfiles.find(p => p.id === interest.user_id) || interest.user;
                       return (
-                        <div key={interest.id} className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-2">
+                        <div key={interest.id} className="p-2.5 rounded-lg bg-white border border-amber-200 space-y-2 shadow-2xs">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <UserAvatar user={applicant} size="xs" />
-                              <span className="text-xs font-medium text-white">{applicant?.full_name}</span>
-                              <span className="text-[9px] font-mono text-slate-400">{applicant?.title || applicant?.role}</span>
+                              <span className="text-xs font-semibold text-gray-900">{applicant?.full_name}</span>
+                              <span className="text-[10px] text-gray-500">{applicant?.title || applicant?.role}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => rejectInterest(interest.id)}
-                                className="px-2 py-1 rounded bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 text-[10px] font-medium transition-colors cursor-pointer"
+                                className="px-2 py-1 rounded bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-700 text-[11px] font-medium transition-colors"
                               >
                                 Reject
                               </button>
                               <button
                                 type="button"
                                 onClick={() => approveInterest(interest.id)}
-                                className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-colors"
                               >
                                 Approve & Assign
                               </button>
                             </div>
                           </div>
-                          <p className="text-xs text-slate-300 italic bg-slate-950/60 p-2 rounded">
+                          <p className="text-xs text-gray-700 italic bg-gray-50 p-2 rounded-md border border-gray-100">
                             &quot;{interest.message}&quot;
                           </p>
                         </div>
@@ -189,17 +189,17 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
 
             {/* For Team Member: Application Action & Status */}
             {currentUser.role === 'TEAM_MEMBER' && !task.assignee_ids.includes(currentUser.id) && (
-              <div className="pt-2 border-t border-amber-900/30">
+              <div className="pt-2 border-t border-amber-200/80">
                 {openTaskInterests.some(i => i.task_id === task.id && i.user_id === currentUser.id && i.status === 'INTERESTED') ? (
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-amber-950/40 border border-amber-800/40">
-                    <div className="flex items-center gap-2 text-xs text-amber-300">
-                      <Clock className="w-3.5 h-3.5 animate-pulse" />
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-100/60 border border-amber-300/80">
+                    <div className="flex items-center gap-2 text-xs text-amber-900 font-medium">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
                       <span>Application submitted — Awaiting Lead review</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => withdrawInterest(task.id)}
-                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-white hover:bg-gray-100 text-gray-700 text-xs font-medium border border-gray-200 transition-colors"
                     >
                       Withdraw
                     </button>
@@ -212,13 +212,13 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
                         value={pitchText}
                         onChange={(e) => setPitchText(e.target.value)}
                         placeholder="Write a brief pitch about your skillset and interest..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                        className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs text-gray-900 focus:outline-hidden focus:border-amber-500 resize-none"
                       />
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => setShowPitchBox(false)}
-                          className="px-3 py-1 rounded bg-slate-800 text-slate-300 text-xs cursor-pointer"
+                          className="px-3 py-1 rounded bg-gray-100 text-gray-700 text-xs font-medium"
                         >
                           Cancel
                         </button>
@@ -229,9 +229,9 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
                             setShowPitchBox(false);
                             setPitchText('');
                           }}
-                          className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer"
+                          className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold"
                         >
-                          Submit Application
+                          Submit Pitch
                         </button>
                       </div>
                     </div>
@@ -239,14 +239,14 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowPitchBox(true)}
-                      className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center gap-1.5"
                     >
                       <Compass className="w-3.5 h-3.5" />
                       <span>Express Interest in this Task</span>
                     </button>
                   )
                 ) : (
-                  <p className="text-xs text-slate-500 italic">This open task has reached maximum capacity.</p>
+                  <p className="text-xs text-gray-500 italic">This open task has reached maximum capacity.</p>
                 )}
               </div>
             )}
@@ -254,11 +254,11 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
         )}
 
         {/* Action Bar (Status Changer for Permitted Users) */}
-        <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
+        <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-mono text-slate-400 uppercase">Change Status:</span>
+            <span className="font-semibold text-gray-700 uppercase tracking-wider text-[11px]">Workflow Status</span>
             {!canUpdateStatus && (
-              <span className="text-[10px] text-amber-400 font-mono">View-only</span>
+              <span className="text-[11px] text-gray-400 font-mono">View-only</span>
             )}
           </div>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
@@ -267,10 +267,10 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
                 key={st}
                 disabled={!canUpdateStatus}
                 onClick={() => handleStatusChange(st)}
-                className={`px-2 py-1.5 rounded text-[11px] font-mono transition-all border ${
+                className={`px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
                   task.status === st
-                    ? 'bg-indigo-600 text-white border-indigo-500 font-semibold shadow-xs'
-                    : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800'
+                    ? 'bg-blue-600 text-white border-blue-600 font-semibold shadow-xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
                 } ${!canUpdateStatus ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {st.replace('_', ' ')}
@@ -281,28 +281,30 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
 
         {/* Description */}
         <div>
-          <h4 className="text-xs font-mono text-slate-400 uppercase mb-1.5">Description & Specifications</h4>
-          <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+          <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 text-[11px]">
+            Description & Specifications
+          </h4>
+          <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-800 leading-relaxed whitespace-pre-wrap">
             {task.description || 'No detailed description provided.'}
           </div>
         </div>
 
         {/* Metadata Grid */}
-        <div className="grid grid-cols-2 gap-4 p-3.5 bg-slate-900/40 rounded-xl border border-slate-800/60 text-xs">
+        <div className="grid grid-cols-2 gap-4 p-3.5 bg-white rounded-xl border border-gray-200 text-xs shadow-2xs">
           <div>
-            <span className="block text-[11px] font-mono text-slate-400 mb-1">DUE DATE</span>
-            <div className="flex items-center gap-1.5 text-slate-200">
-              <Calendar className="w-4 h-4 text-indigo-400" />
+            <span className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Due Date</span>
+            <div className="flex items-center gap-1.5 text-gray-900 font-medium">
+              <Calendar className="w-4 h-4 text-blue-600" />
               <span>{formatDate(task.due_date)}</span>
             </div>
           </div>
           <div>
-            <span className="block text-[11px] font-mono text-slate-400 mb-1">PRIORITY LEVEL</span>
+            <span className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Priority</span>
             {canEdit ? (
               <select
                 value={task.priority}
                 onChange={(e) => handlePriorityChange(e.target.value as TaskPriority)}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                className="bg-white border border-gray-200 rounded px-2 py-1 text-xs text-gray-900 font-medium focus:outline-hidden focus:border-blue-500"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -318,33 +320,33 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
         {/* Collaborative Assignees */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-mono text-slate-400 uppercase">
+            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider text-[11px]">
               Assigned Engineers ({task.assignees.length})
             </h4>
             {task.assignees.length > 1 && (
-              <span className="text-[10px] font-mono text-indigo-400 bg-indigo-950/60 border border-indigo-800/60 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
                 Collaborative Task
               </span>
             )}
           </div>
           <div className="space-y-2">
             {task.assignees.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">No engineers assigned yet</p>
+              <p className="text-xs text-gray-400 italic">No engineers assigned yet</p>
             ) : (
               task.assignees.map(engineer => (
                 <div
                   key={engineer.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80"
+                  className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200 shadow-2xs"
                 >
                   <div className="flex items-center gap-2.5">
                     <UserAvatar user={engineer} size="sm" />
                     <div>
-                      <div className="text-xs font-medium text-white">{engineer.full_name}</div>
-                      <div className="text-[10px] text-slate-400">{engineer.title || engineer.role}</div>
+                      <div className="text-xs font-semibold text-gray-900">{engineer.full_name}</div>
+                      <div className="text-[10px] text-gray-500">{engineer.title || engineer.role}</div>
                     </div>
                   </div>
                   {engineer.id === currentUser.id && (
-                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-800/50 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md">
                       You
                     </span>
                   )}
@@ -355,30 +357,30 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
         </div>
 
         {/* Realtime Contextual Comments */}
-        <div className="pt-4 border-t border-slate-800">
+        <div className="pt-4 border-t border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-indigo-400" />
-              <h4 className="text-xs font-mono text-slate-300 uppercase">Comments & Technical Thread</h4>
+              <MessageSquare className="w-4 h-4 text-blue-600" />
+              <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider text-[11px]">Comments & Discussion</h4>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">{taskComments.length} messages</span>
+            <span className="text-[11px] text-gray-500 font-mono">{taskComments.length} messages</span>
           </div>
 
           {/* Comment Stream */}
-          <div className="space-y-3 mb-4 max-h-56 overflow-y-auto pr-1">
+          <div className="space-y-2.5 mb-3 max-h-56 overflow-y-auto pr-1">
             {taskComments.length === 0 ? (
-              <p className="text-xs text-slate-500 italic py-2">No comments yet. Start the discussion below.</p>
+              <p className="text-xs text-gray-400 italic py-2">No comments yet. Start the discussion below.</p>
             ) : (
               taskComments.map(comment => (
-                <div key={comment.id} className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1.5">
+                <div key={comment.id} className="p-3 bg-white rounded-xl border border-gray-200 space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <UserAvatar user={comment.author} size="xs" />
-                      <span className="text-xs font-medium text-slate-200">{comment.author?.full_name || 'Member'}</span>
+                      <span className="text-xs font-semibold text-gray-900">{comment.author?.full_name || 'Member'}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500">{formatTimeAgo(comment.created_at)}</span>
+                    <span className="text-[10px] text-gray-400">{formatTimeAgo(comment.created_at)}</span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed pl-6">{comment.content}</p>
+                  <p className="text-xs text-gray-700 leading-relaxed pl-6">{comment.content}</p>
                 </div>
               ))
             )}
@@ -391,12 +393,12 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
               placeholder="Write a technical note or status update..."
-              className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500"
             />
             <button
               type="submit"
               disabled={!commentInput.trim()}
-              className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-1 transition-colors"
+              className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Post</span>
@@ -405,16 +407,16 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
         </div>
 
         {/* Task Activity Logs */}
-        <div className="pt-4 border-t border-slate-800">
-          <h4 className="text-xs font-mono text-slate-400 uppercase mb-2">Audit Trail / Activity</h4>
-          <div className="space-y-1.5">
+        <div className="pt-4 border-t border-gray-100">
+          <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 text-[11px]">Audit Trail / Activity</h4>
+          <div className="space-y-1">
             {taskActivities.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">No activity recorded yet</p>
+              <p className="text-xs text-gray-400 italic">No activity recorded yet</p>
             ) : (
               taskActivities.map(act => (
-                <div key={act.id} className="flex items-center justify-between text-[11px] text-slate-400 font-mono py-1 border-b border-slate-900">
+                <div key={act.id} className="flex items-center justify-between text-[11px] text-gray-500 py-1 border-b border-gray-50">
                   <span>{act.actor?.full_name || 'System'} {act.action.replace('_', ' ')}</span>
-                  <span className="text-slate-600">{formatTimeAgo(act.created_at)}</span>
+                  <span className="text-gray-400">{formatTimeAgo(act.created_at)}</span>
                 </div>
               ))
             )}
@@ -423,10 +425,10 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
 
         {/* Delete Task (Permitted for Leads & Office Bearers) */}
         {canDelete && (
-          <div className="pt-4 border-t border-slate-800 flex justify-end">
+          <div className="pt-4 border-t border-gray-100 flex justify-end">
             <button
               onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-rose-900/60 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Task</span>

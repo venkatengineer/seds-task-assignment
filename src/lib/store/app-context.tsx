@@ -4,12 +4,14 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { 
   Profile, Team, Sprint, Task, TaskComment, Announcement, 
   ActivityLog, NotificationItem, LeadMessage, TaskStatus, TaskPriority,
-  TaskAssignmentType, OpenTaskStatus, OpenTaskInterest
+  TaskAssignmentType, OpenTaskStatus, OpenTaskInterest, UserRole,
+  NotificationPriority, PushSubscriptionItem, NotificationPreferences
 } from '@/types/database';
 import { 
   SEED_TEAMS, SEED_PROFILES, SEED_SPRINTS, SEED_TASKS, 
   SEED_COMMENTS, SEED_ANNOUNCEMENTS, SEED_ACTIVITY_LOGS, 
-  SEED_NOTIFICATIONS, SEED_LEAD_MESSAGES, SEED_OPEN_TASK_INTERESTS
+  SEED_NOTIFICATIONS, SEED_LEAD_MESSAGES, SEED_OPEN_TASK_INTERESTS,
+  SEED_NOTIFICATION_PREFERENCES
 } from './seed-data';
 import { Permissions } from '@/lib/permissions';
 
@@ -27,12 +29,36 @@ interface AppContextType {
   activityLogs: ActivityLog[];
   notifications: NotificationItem[];
   leadMessages: LeadMessage[];
+  notificationPreferences: NotificationPreferences;
+  pushSubscriptions: PushSubscriptionItem[];
   unreadNotificationCount: number;
   isDevSimulation: boolean;
   
   // User simulation / Auth switching
   switchUser: (userId: string) => void;
-  setCurrentUserByRole: (role: 'OFFICE_BEARER' | 'TEAM_LEAD' | 'TEAM_MEMBER') => void;
+  setCurrentUserByRole: (role: 'OFFICE_BEARER' | 'TEAM_LEAD' | 'TEAM_MEMBER' | 'ADMIN') => void;
+  
+  // Notification operations
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  updateNotificationPreferences: (prefs: Partial<NotificationPreferences>) => void;
+  subscribeToPush: (sub: { endpoint: string; p256dh_key: string; auth_key: string; device_name?: string }) => void;
+  sendManualNotification: (data: {
+    title: string;
+    message: string;
+    priority: NotificationPriority;
+    audience: 'MY_TEAM' | 'SELECTED_MEMBERS' | 'ALL_SEDS' | 'ALL_LEADS' | 'OFFICE_BEARERS';
+    targetTeamId?: string | null;
+    targetMemberIds?: string[];
+  }) => void;
+
+  // Admin user & team operations
+  createUser: (data: { full_name: string; email: string; role: UserRole; team_id: string | null; title?: string }) => Profile;
+  updateUser: (userId: string, updates: Partial<Profile>) => void;
+  suspendUser: (userId: string) => void;
+  activateUser: (userId: string) => void;
+  updateTeam: (teamId: string, updates: Partial<Team>) => void;
+  archiveTeam: (teamId: string) => void;
   
   // Task operations
   createTask: (data: {
@@ -103,10 +129,6 @@ interface AppContextType {
     color: string;
     accent: string;
   }) => Team;
-
-  // Notifications
-  markNotificationRead: (id: string) => void;
-  markAllNotificationsRead: () => void;
   
   // Diagnostics & Reset
   resetToSeedData: () => void;
@@ -141,7 +163,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return loadStored<string>('current_user_id', SEED_PROFILES[0].id); // Defaults to Office Bearer
   });
 
-  const [profiles] = useState<Profile[]>(SEED_PROFILES);
+  const [profiles, setProfiles] = useState<Profile[]>(() => loadStored<Profile[]>('profiles', SEED_PROFILES));
   const [teams, setTeams] = useState<Team[]>(() => loadStored<Team[]>('teams', SEED_TEAMS));
   const [sprints, setSprints] = useState<Sprint[]>(() => loadStored<Sprint[]>('sprints', SEED_SPRINTS));
   const [tasks, setTasks] = useState<Task[]>(() => loadStored<Task[]>('tasks', SEED_TASKS));
@@ -153,9 +175,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [openTaskInterests, setOpenTaskInterests] = useState<OpenTaskInterest[]>(() => 
     loadStored<OpenTaskInterest[]>('open_task_interests', SEED_OPEN_TASK_INTERESTS)
   );
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => 
+    loadStored<NotificationPreferences>('notification_preferences', SEED_NOTIFICATION_PREFERENCES)
+  );
+  const [pushSubscriptions, setPushSubscriptions] = useState<PushSubscriptionItem[]>(() => 
+    loadStored<PushSubscriptionItem[]>('push_subscriptions', [])
+  );
 
   // Sync state changes to localStorage
   useEffect(() => saveStored('current_user_id', currentUserId), [currentUserId]);
+  useEffect(() => saveStored('profiles', profiles), [profiles]);
   useEffect(() => saveStored('teams', teams), [teams]);
   useEffect(() => saveStored('sprints', sprints), [sprints]);
   useEffect(() => saveStored('tasks', tasks), [tasks]);
@@ -165,6 +194,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => saveStored('notifications', notifications), [notifications]);
   useEffect(() => saveStored('lead_messages', leadMessages), [leadMessages]);
   useEffect(() => saveStored('open_task_interests', openTaskInterests), [openTaskInterests]);
+  useEffect(() => saveStored('notification_preferences', notificationPreferences), [notificationPreferences]);
+  useEffect(() => saveStored('push_subscriptions', pushSubscriptions), [pushSubscriptions]);
 
   const currentUser = useMemo(() => {
     const found = profiles.find(p => p.id === currentUserId);
@@ -175,7 +206,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUserId(userId);
   }, []);
 
-  const setCurrentUserByRole = useCallback((role: 'OFFICE_BEARER' | 'TEAM_LEAD' | 'TEAM_MEMBER') => {
+  const setCurrentUserByRole = useCallback((role: 'OFFICE_BEARER' | 'TEAM_LEAD' | 'TEAM_MEMBER' | 'ADMIN') => {
     const found = profiles.find(p => p.role === role);
     if (found) {
       setCurrentUserId(found.id);
@@ -184,6 +215,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Tasks visible to the current user strictly matching role permissions (Kanban / My Tasks)
   const visibleTasks = useMemo(() => {
+    if (currentUser.role === 'ADMIN') {
+      return []; // Admin is strictly for user provisioning and membership management
+    }
     if (currentUser.role === 'OFFICE_BEARER') {
       return tasks;
     }
@@ -196,6 +230,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Open Tasks discovery list based on permissions
   const openTasks = useMemo(() => {
+    if (currentUser.role === 'ADMIN') {
+      return [];
+    }
     if (currentUser.role === 'OFFICE_BEARER') {
       return tasks.filter(t => t.assignment_type === 'OPEN');
     }
@@ -207,7 +244,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUser, tasks]);
 
   const unreadNotificationCount = useMemo(() => {
-    return notifications.filter(n => n.user_id === currentUser.id && !n.read).length;
+    return notifications.filter(n => 
+      (n.recipient_id === currentUser.id || n.user_id === currentUser.id) && !(n.is_read || n.read)
+    ).length;
   }, [notifications, currentUser.id]);
 
   // Task Operations
@@ -291,26 +330,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const notif: NotificationItem = {
             id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${m.id}`,
             user_id: m.id,
-            title: 'New Open Task Available',
-            message: `New open task "${data.title}" posted for ${team?.name || 'your team'}. Express interest now!`,
+            recipient_id: m.id,
+            actor_id: currentUser.id,
+            team_id: data.team_id,
+            task_id: taskId,
+            sprint_id: data.sprint_id || null,
+            title: `New task available in ${team?.name || 'your team'}`,
+            message: `Open Task: "${data.title}" (${data.story_points} pts). Review and express interest.`,
             type: 'open_task_interest',
+            priority: 'INFO',
             link: '/open-tasks',
+            action_url: '/open-tasks',
             read: false,
+            is_read: false,
             created_at: new Date().toISOString(),
           };
           setNotifications(prev => [notif, ...prev]);
         });
     } else {
+      const isCollab = assigneeIds.length > 1;
       assigneeIds.forEach(uid => {
         if (uid !== currentUser.id) {
           const notif: NotificationItem = {
             id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${uid}`,
             user_id: uid,
-            title: 'New Task Assigned',
-            message: `${currentUser.full_name} assigned you to "${data.title}"`,
+            recipient_id: uid,
+            actor_id: currentUser.id,
+            team_id: data.team_id,
+            task_id: taskId,
+            sprint_id: data.sprint_id || null,
+            title: isCollab ? 'New collaborative task assigned to you' : 'New task assigned to you',
+            message: isCollab
+              ? `${currentUser.full_name} assigned you to collaborative task "${data.title}" with ${assigneeIds.length - 1} other member(s)`
+              : `${currentUser.full_name} assigned you to "${data.title}"`,
             type: 'task_assigned',
+            priority: data.priority === 'URGENT' ? 'URGENT' : (data.priority === 'HIGH' ? 'IMPORTANT' : 'INFO'),
             link: `/tasks/${taskId}`,
+            action_url: `/tasks/${taskId}`,
             read: false,
+            is_read: false,
             created_at: new Date().toISOString(),
           };
           setNotifications(prev => [notif, ...prev]);
@@ -368,6 +426,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         team_name: task.team_name,
       };
       setActivityLogs(acts => [act, ...acts]);
+      // Send notifications based on new status
+      if (newStatus === 'BLOCKED') {
+        const recipients = profiles.filter(p => (p.role === 'TEAM_LEAD' && p.team_id === task.team_id) || p.role === 'OFFICE_BEARER');
+        recipients.forEach(r => {
+          if (r.id !== currentUser.id) {
+            setNotifications(n => [{
+              id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${r.id}`,
+              user_id: r.id,
+              recipient_id: r.id,
+              actor_id: currentUser.id,
+              team_id: task.team_id,
+              task_id: taskId,
+              sprint_id: task.sprint_id,
+              title: `Task Blocked: ${task.title}`,
+              message: `${currentUser.full_name} marked "${task.title}" as blocked. Attention required.`,
+              type: 'task_status_changed',
+              priority: 'URGENT',
+              link: `/tasks/${taskId}`,
+              action_url: `/tasks/${taskId}`,
+              read: false,
+              is_read: false,
+              created_at: new Date().toISOString(),
+            }, ...n]);
+          }
+        });
+      } else if (newStatus === 'IN_REVIEW') {
+        const recipients = profiles.filter(p => (p.role === 'TEAM_LEAD' && p.team_id === task.team_id) || p.id === task.created_by);
+        recipients.forEach(r => {
+          if (r.id !== currentUser.id) {
+            setNotifications(n => [{
+              id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${r.id}`,
+              user_id: r.id,
+              recipient_id: r.id,
+              actor_id: currentUser.id,
+              team_id: task.team_id,
+              task_id: taskId,
+              sprint_id: task.sprint_id,
+              title: `Task Ready for Review: ${task.title}`,
+              message: `${currentUser.full_name} submitted "${task.title}" for review.`,
+              type: 'task_status_changed',
+              priority: 'IMPORTANT',
+              link: `/tasks/${taskId}`,
+              action_url: `/tasks/${taskId}`,
+              read: false,
+              is_read: false,
+              created_at: new Date().toISOString(),
+            }, ...n]);
+          }
+        });
+      } else if (newStatus === 'COMPLETED') {
+        const recipients = profiles.filter(p => p.id === task.created_by || (p.role === 'TEAM_LEAD' && p.team_id === task.team_id));
+        recipients.forEach(r => {
+          if (r.id !== currentUser.id) {
+            setNotifications(n => [{
+              id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${r.id}`,
+              user_id: r.id,
+              recipient_id: r.id,
+              actor_id: currentUser.id,
+              team_id: task.team_id,
+              task_id: taskId,
+              sprint_id: task.sprint_id,
+              title: `Task Completed: ${task.title}`,
+              message: `${currentUser.full_name} marked "${task.title}" as completed.`,
+              type: 'task_status_changed',
+              priority: 'INFO',
+              link: `/tasks/${taskId}`,
+              action_url: `/tasks/${taskId}`,
+              read: false,
+              is_read: false,
+              created_at: new Date().toISOString(),
+            }, ...n]);
+          }
+        });
+      }
 
       return prev.map(t => t.id === taskId ? {
         ...t,
@@ -375,7 +507,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updated_at: new Date().toISOString()
       } : t);
     });
-  }, [currentUser]);
+  }, [currentUser, profiles]);
 
   const deleteTask = useCallback((taskId: string) => {
     setTasks(prev => {
@@ -767,8 +899,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         team_name: sprint.team_name,
       };
       setActivityLogs(prev => [act, ...prev]);
+
+      profiles.filter(p => p.team_id === sprint.team_id && p.id !== currentUser.id).forEach(r => {
+        setNotifications(n => [{
+          id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${r.id}`,
+          user_id: r.id,
+          recipient_id: r.id,
+          actor_id: currentUser.id,
+          team_id: sprint.team_id,
+          sprint_id: sprint.id,
+          title: `Sprint Started: ${sprint.name}`,
+          message: `${sprint.name} is now active. Review your sprint backlog.`,
+          type: 'sprint_started',
+          priority: 'IMPORTANT',
+          link: '/sprints',
+          action_url: '/sprints',
+          read: false,
+          is_read: false,
+          created_at: new Date().toISOString(),
+        }, ...n]);
+      });
     }
-  }, [sprints, currentUser]);
+  }, [sprints, currentUser, profiles]);
 
   const completeSprint = useCallback((sprintId: string) => {
     setSprints(prev => prev.map(s => s.id === sprintId ? {
@@ -792,8 +944,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         team_name: sprint.team_name,
       };
       setActivityLogs(prev => [act, ...prev]);
+
+      profiles.filter(p => p.team_id === sprint.team_id && p.id !== currentUser.id).forEach(r => {
+        setNotifications(n => [{
+          id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${r.id}`,
+          user_id: r.id,
+          recipient_id: r.id,
+          actor_id: currentUser.id,
+          team_id: sprint.team_id,
+          sprint_id: sprint.id,
+          title: `Sprint Completed: ${sprint.name}`,
+          message: `${sprint.name} has concluded. Check retrospective summary.`,
+          type: 'sprint_completed',
+          priority: 'INFO',
+          link: '/sprints',
+          action_url: '/sprints',
+          read: false,
+          is_read: false,
+          created_at: new Date().toISOString(),
+        }, ...n]);
+      });
     }
-  }, [sprints, currentUser]);
+  }, [sprints, currentUser, profiles]);
 
   // Comment Operations
   const addComment = useCallback((taskId: string, content: string) => {
@@ -932,14 +1104,208 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newTeam;
   }, []);
 
-  // Notifications
+  // Notification operations
   const markNotificationRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, is_read: true, read_at: new Date().toISOString() } : n));
   }, []);
 
   const markAllNotificationsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => n.user_id === currentUser.id ? { ...n, read: true } : n));
+    const now = new Date().toISOString();
+    setNotifications(prev => prev.map(n => 
+      (n.user_id === currentUser.id || n.recipient_id === currentUser.id)
+        ? { ...n, read: true, is_read: true, read_at: now }
+        : n
+    ));
   }, [currentUser.id]);
+
+  const updateNotificationPreferences = useCallback((prefs: Partial<NotificationPreferences>) => {
+    setNotificationPreferences(prev => ({
+      ...prev,
+      ...prefs,
+      updated_at: new Date().toISOString(),
+    }));
+  }, []);
+
+  const subscribeToPush = useCallback((sub: { endpoint: string; p256dh_key: string; auth_key: string; device_name?: string }) => {
+    const newSub: PushSubscriptionItem = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `push-${Date.now()}`,
+      user_id: currentUser.id,
+      endpoint: sub.endpoint,
+      p256dh_key: sub.p256dh_key,
+      auth_key: sub.auth_key,
+      device_name: sub.device_name || 'Browser Device',
+      created_at: new Date().toISOString(),
+    };
+    setPushSubscriptions(prev => [newSub, ...prev.filter(p => p.endpoint !== sub.endpoint)]);
+  }, [currentUser.id]);
+
+  const sendManualNotification = useCallback((data: {
+    title: string;
+    message: string;
+    priority: NotificationPriority;
+    audience: 'MY_TEAM' | 'SELECTED_MEMBERS' | 'ALL_SEDS' | 'ALL_LEADS' | 'OFFICE_BEARERS';
+    targetTeamId?: string | null;
+    targetMemberIds?: string[];
+  }) => {
+    if (!Permissions.canSendBroadcast(currentUser)) {
+      throw new Error('Unauthorized to send broadcast notifications');
+    }
+
+    let recipientIds: string[] = [];
+
+    if (currentUser.role === 'TEAM_LEAD') {
+      const myTeamId = currentUser.team_id;
+      if (data.audience === 'MY_TEAM') {
+        recipientIds = profiles.filter(p => p.team_id === myTeamId && p.id !== currentUser.id).map(p => p.id);
+      } else if (data.audience === 'SELECTED_MEMBERS' && data.targetMemberIds) {
+        recipientIds = profiles
+          .filter(p => p.team_id === myTeamId && data.targetMemberIds!.includes(p.id) && p.id !== currentUser.id)
+          .map(p => p.id);
+      } else {
+        throw new Error('Team Leads may only send notifications to their own team or team members');
+      }
+    } else if (currentUser.role === 'OFFICE_BEARER') {
+      if (data.audience === 'ALL_SEDS') {
+        recipientIds = profiles.filter(p => p.id !== currentUser.id).map(p => p.id);
+      } else if (data.audience === 'ALL_LEADS') {
+        recipientIds = profiles.filter(p => p.role === 'TEAM_LEAD' && p.id !== currentUser.id).map(p => p.id);
+      } else if (data.audience === 'OFFICE_BEARERS') {
+        recipientIds = profiles.filter(p => p.role === 'OFFICE_BEARER' && p.id !== currentUser.id).map(p => p.id);
+      } else if (data.audience === 'MY_TEAM' && data.targetTeamId) {
+        recipientIds = profiles.filter(p => p.team_id === data.targetTeamId && p.id !== currentUser.id).map(p => p.id);
+      } else if (data.audience === 'SELECTED_MEMBERS' && data.targetMemberIds) {
+        recipientIds = data.targetMemberIds.filter(id => id !== currentUser.id);
+      }
+    }
+
+    const createdNotifications: NotificationItem[] = recipientIds.map(uid => ({
+      id: crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${uid}`,
+      user_id: uid,
+      recipient_id: uid,
+      actor_id: currentUser.id,
+      team_id: currentUser.team_id || data.targetTeamId || null,
+      title: data.title,
+      message: data.message,
+      type: 'manual_broadcast',
+      priority: data.priority,
+      link: '/communication',
+      action_url: '/communication',
+      read: false,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    }));
+
+    setNotifications(prev => [...createdNotifications, ...prev]);
+
+    // Activity log
+    const act: ActivityLog = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+      actor_id: currentUser.id,
+      team_id: currentUser.team_id || null,
+      task_id: null,
+      sprint_id: null,
+      action: 'broadcast_sent',
+      metadata: { title: data.title, audience: data.audience, recipient_count: recipientIds.length },
+      created_at: new Date().toISOString(),
+      actor: currentUser,
+    };
+    setActivityLogs(prev => [act, ...prev]);
+  }, [currentUser, profiles]);
+
+  // Admin user & team operations
+  const createUser = useCallback((data: {
+    full_name: string;
+    email: string;
+    role: UserRole;
+    team_id: string | null;
+    title?: string;
+  }): Profile => {
+    if (!Permissions.canManageUsers(currentUser)) {
+      throw new Error('Unauthorized to manage users');
+    }
+
+    if ((data.role === 'TEAM_MEMBER' || data.role === 'TEAM_LEAD') && !data.team_id) {
+      throw new Error('Team Members and Team Leads must be assigned to exactly one team.');
+    }
+
+    const newId = crypto.randomUUID ? crypto.randomUUID() : `user-${Date.now()}`;
+    const newProfile: Profile = {
+      id: newId,
+      full_name: data.full_name,
+      email: data.email,
+      role: data.role,
+      team_id: data.team_id,
+      title: data.title || (data.role === 'ADMIN' ? 'Platform Administrator' : (data.role === 'TEAM_LEAD' ? 'Team Lead' : 'Engineer')),
+      account_status: 'ACTIVE',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.full_name)}`,
+    };
+
+    setProfiles(prev => [...prev, newProfile]);
+
+    // If assigned to a team, increment team count
+    if (data.team_id) {
+      setTeams(prev => prev.map(t => t.id === data.team_id ? { ...t, member_count: (t.member_count || 0) + 1 } : t));
+    }
+
+    const act: ActivityLog = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}`,
+      actor_id: currentUser.id,
+      team_id: data.team_id,
+      task_id: null,
+      sprint_id: null,
+      action: 'user_created',
+      metadata: { full_name: data.full_name, email: data.email, role: data.role },
+      created_at: new Date().toISOString(),
+      actor: currentUser,
+    };
+    setActivityLogs(prev => [act, ...prev]);
+
+    return newProfile;
+  }, [currentUser]);
+
+  const updateUser = useCallback((userId: string, updates: Partial<Profile>) => {
+    if (!Permissions.canManageUsers(currentUser)) {
+      throw new Error('Unauthorized to edit users');
+    }
+
+    setProfiles(prev => prev.map(p => {
+      if (p.id !== userId) return p;
+      return {
+        ...p,
+        ...updates,
+      };
+    }));
+  }, [currentUser]);
+
+  const suspendUser = useCallback((userId: string) => {
+    if (!Permissions.canManageUsers(currentUser)) {
+      throw new Error('Unauthorized to suspend users');
+    }
+    setProfiles(prev => prev.map(p => p.id === userId ? { ...p, account_status: 'SUSPENDED' } : p));
+  }, [currentUser]);
+
+  const activateUser = useCallback((userId: string) => {
+    if (!Permissions.canManageUsers(currentUser)) {
+      throw new Error('Unauthorized to activate users');
+    }
+    setProfiles(prev => prev.map(p => p.id === userId ? { ...p, account_status: 'ACTIVE' } : p));
+  }, [currentUser]);
+
+  const updateTeam = useCallback((teamId: string, updates: Partial<Team>) => {
+    if (!Permissions.canManageUsers(currentUser) && currentUser.role !== 'OFFICE_BEARER') {
+      throw new Error('Unauthorized to update team');
+    }
+    setTeams(prev => prev.map(t => t.id === teamId ? { ...t, ...updates, updated_at: new Date().toISOString() } : t));
+  }, [currentUser]);
+
+  const archiveTeam = useCallback((teamId: string) => {
+    if (!Permissions.canManageUsers(currentUser) && currentUser.role !== 'OFFICE_BEARER') {
+      throw new Error('Unauthorized to archive team');
+    }
+    setTeams(prev => prev.map(t => t.id === teamId ? { ...t, description: `[Archived] ${t.description}`, updated_at: new Date().toISOString() } : t));
+  }, [currentUser]);
 
   const resetToSeedData = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -958,6 +1324,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications(SEED_NOTIFICATIONS);
     setLeadMessages(SEED_LEAD_MESSAGES);
     setOpenTaskInterests(SEED_OPEN_TASK_INTERESTS);
+    setProfiles(SEED_PROFILES);
+    setNotificationPreferences(SEED_NOTIFICATION_PREFERENCES);
+    setPushSubscriptions([]);
     setCurrentUserId(SEED_PROFILES[0].id);
   }, []);
 
@@ -976,6 +1345,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activityLogs,
       notifications,
       leadMessages,
+      notificationPreferences,
+      pushSubscriptions,
       unreadNotificationCount,
       isDevSimulation: true,
       switchUser,
@@ -1000,6 +1371,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createTeam,
       markNotificationRead,
       markAllNotificationsRead,
+      updateNotificationPreferences,
+      subscribeToPush,
+      sendManualNotification,
+      createUser,
+      updateUser,
+      suspendUser,
+      activateUser,
+      updateTeam,
+      archiveTeam,
       resetToSeedData,
     }}>
       {children}

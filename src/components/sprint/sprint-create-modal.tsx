@@ -62,8 +62,8 @@ export const SprintCreateModal: React.FC<SprintCreateModalProps> = ({
       setGoal('');
       setDescription('');
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create sprint');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create sprint');
     }
   };
 
@@ -73,23 +73,23 @@ export const SprintCreateModal: React.FC<SprintCreateModalProps> = ({
       onClose={onClose}
       title="Create Subsystem Sprint"
       description="Define milestone deliverables, sprint duration, and strategic subsystem goals."
-      maxWidth="md"
+      size="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 py-1">
         {error && (
-          <div className="p-3 bg-rose-950/60 border border-rose-800 rounded-lg text-xs text-rose-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
             <span>{error}</span>
           </div>
         )}
 
         {isOfficeBearer && (
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">TEAM / SUBSYSTEM</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Target Team / Subsystem</label>
             <select
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500 font-medium"
             >
               {teams.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -99,74 +99,74 @@ export const SprintCreateModal: React.FC<SprintCreateModalProps> = ({
         )}
 
         <div>
-          <label className="block text-xs font-mono text-slate-400 mb-1">SPRINT NAME *</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Sprint Name *</label>
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Sprint 05 - Avionics Qualification"
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 font-medium"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-mono text-slate-400 mb-1">PRIMARY SPRINT GOAL *</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Primary Sprint Goal *</label>
           <textarea
             rows={2}
             required
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             placeholder="e.g. Validate zero-drift IMU filter and pass thermal chamber endurance tests."
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 resize-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">START DATE</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Start Date</label>
             <input
               type="date"
               required
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">END DATE</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">End Date</label>
             <input
               type="date"
               required
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-hidden focus:border-blue-500"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-mono text-slate-400 mb-1">ADDITIONAL SCOPE NOTES</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Additional Scope Notes</label>
           <textarea
             rows={2}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Hardware revisions, lab clearances, partner dependencies..."
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-hidden focus:border-blue-500 resize-none"
           />
         </div>
 
-        <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+        <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs shadow-indigo-950 transition-colors"
+            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
           >
             Create Sprint
           </button>

@@ -99,10 +99,23 @@ export const Permissions = {
   },
 
   canCommentOnTask(user: Profile | null | undefined, task: Task): boolean {
+    if (user?.role === 'ADMIN') return false; // Admin is not an operational role
     return this.canViewTask(user, task);
   },
 
   canManageTeam(user: Profile | null | undefined): boolean {
-    return user?.role === 'OFFICE_BEARER';
+    return user?.role === 'OFFICE_BEARER' || user?.role === 'ADMIN';
+  },
+
+  isAdmin(user: Profile | null | undefined): boolean {
+    return user?.role === 'ADMIN';
+  },
+
+  canManageUsers(user: Profile | null | undefined): boolean {
+    return user?.role === 'ADMIN' || user?.role === 'OFFICE_BEARER';
+  },
+
+  canSendBroadcast(user: Profile | null | undefined): boolean {
+    return user?.role === 'OFFICE_BEARER' || user?.role === 'TEAM_LEAD';
   }
 };

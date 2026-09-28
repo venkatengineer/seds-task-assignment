@@ -8,7 +8,8 @@ import { RoleBadge } from '@/components/ui/badges';
 import { 
   Users, UserPlus, Search, 
   Edit2, Ban, CheckCircle, AlertTriangle,
-  UserCheck, UserX, Mail, Building, Plus
+  UserCheck, UserX, Mail, Building, Plus,
+  RotateCcw, KeyRound, Loader2
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -20,6 +21,7 @@ export const AdminDashboard: React.FC = () => {
     updateUser, 
     suspendUser, 
     activateUser,
+    adminResetPassword,
     createTeam,
     updateTeam,
     archiveTeam,
@@ -36,6 +38,8 @@ export const AdminDashboard: React.FC = () => {
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [resettingUser, setResettingUser] = useState<Profile | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // New User Form State
   const [newName, setNewName] = useState('');
@@ -143,6 +147,28 @@ export const AdminDashboard: React.FC = () => {
       setFormError(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!resettingUser) return;
+    try {
+      setIsResettingPassword(true);
+      const res = await adminResetPassword(resettingUser.id);
+      if (res.error) {
+        setFormError(res.error);
+      } else {
+        setSuccessNotification({
+          title: 'Password Reset Successful!',
+          message: `Password for ${resettingUser.full_name} (${resettingUser.email}) has been reset.`,
+          password: res.password || 'Seds@2026',
+        });
+        setResettingUser(null);
+      }
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to reset password');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -459,6 +485,14 @@ export const AdminDashboard: React.FC = () => {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
 
+                          <button
+                            onClick={() => setResettingUser(user)}
+                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors cursor-pointer"
+                            title="Reset password to Seds@2026"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+
                           {isSuspended ? (
                             <button
                               onClick={() => activateUser(user.id)}
@@ -511,7 +545,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           ) : (
             teams.map((team) => {
-              const teamMembers = allProfiles.filter(p => p.team_id === team.id);
+              const teamMembers = allProfiles.filter(p => p.team_id === team.id && p.role !== 'ADMIN');
               const teamLeads = teamMembers.filter(p => p.role === 'TEAM_LEAD');
 
               return (
@@ -867,6 +901,66 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Modal: Confirm Reset Password */}
+      {resettingUser && (
+        <Modal
+          isOpen={Boolean(resettingUser)}
+          onClose={() => setResettingUser(null)}
+          title="Reset Member Password"
+          size="sm"
+        >
+          <div className="space-y-4 py-1">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg shrink-0">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  Are you sure you want to reset the password for{' '}
+                  <strong className="text-gray-900">{resettingUser.full_name}</strong> (
+                  <span className="font-mono text-gray-600">{resettingUser.email}</span>)?
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Their password will be reset to the organization default:
+                </p>
+                <div className="mt-1 font-mono text-xs font-bold text-amber-800 bg-amber-50/80 border border-amber-200 px-2.5 py-1.5 rounded inline-block">
+                  Seds@2026
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                disabled={isResettingPassword}
+                onClick={() => setResettingUser(null)}
+                className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isResettingPassword}
+                onClick={handleConfirmResetPassword}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset to Seds@2026</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

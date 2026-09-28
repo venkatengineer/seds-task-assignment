@@ -1,94 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
-import { Orbit, Mail, Lock, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Orbit, ShieldAlert, ArrowLeft, Mail, Copy, Check, KeyRound } from 'lucide-react';
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isRecoverySession, setIsRecoverySession] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const adminEmail = 'venkatbadhrinarayanan.pv.2024.cse@rajalakshmi.edu.in';
 
-  useEffect(() => {
-    // Check if user is arriving with a recovery session/token from email link
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsRecoverySession(true);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecoverySession(true);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const handleRequestReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    const redirectUrl = typeof window !== 'undefined' 
-      ? `${window.location.origin}/reset-password` 
-      : 'http://localhost:3000/reset-password';
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: redirectUrl,
-    });
-
-    setLoading(false);
-
-    if (resetError) {
-      setError(resetError.message || 'Unable to send reset email. Please try again.');
-    } else {
-      setMessage('Password reset instructions have been sent to your email.');
-    }
-  };
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 8) {
-      setError('Password must be at least 8 characters long.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    setLoading(false);
-
-    if (updateError) {
-      setError(updateError.message || 'Failed to update password.');
-    } else {
-      setMessage('Password updated successfully. Redirecting to login...');
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
-    }
+  const handleCopy = () => {
+    navigator.clipboard.writeText(adminEmail);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -103,115 +26,82 @@ export default function ResetPasswordPage() {
             SEDS REC
           </h1>
           <p className="text-xs sm:text-sm text-gray-500">
-            {isRecoverySession ? 'Set New Account Password' : 'Reset Account Password'}
+            Account Password Recovery
           </p>
         </div>
 
-        {/* Panel */}
+        {/* Security Policy Panel */}
         <div className="p-6 sm:p-7 bg-white border border-gray-200 rounded-xl shadow-xs space-y-5">
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+            <div className="p-2 bg-amber-100 text-amber-700 rounded-lg shrink-0 mt-0.5">
+              <ShieldAlert className="w-5 h-5" />
             </div>
-          )}
-
-          {message && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-              <span>{message}</span>
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                Self-Service Reset Disabled
+              </h3>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                For internal team security, automated password reset emails are restricted. 
+                Please request a password reset from your <strong>SEDS Administrator</strong> or <strong>Team Lead</strong>.
+              </p>
             </div>
-          )}
+          </div>
 
-          {!isRecoverySession ? (
-            <form onSubmit={handleRequestReset} className="space-y-4">
-              <p className="text-xs text-gray-500">
-                Enter your registered SEDS email address and we'll transmit a secure password recovery link.
-              </p>
+          <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
+            <p className="font-semibold text-gray-900 flex items-center gap-1.5">
+              <KeyRound className="w-4 h-4 text-blue-600" />
+              <span>How Password Reset Works:</span>
+            </p>
+            <ol className="list-decimal list-inside space-y-2 pl-1 text-gray-600">
+              <li>
+                Contact your Platform Administrator or Team Lead with your registered college email.
+              </li>
+              <li>
+                The Administrator will reset your credentials to the default system password (<code className="font-mono font-bold text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded">Seds@2026</code>).
+              </li>
+              <li>
+                Sign in with <code className="font-mono text-gray-800">Seds@2026</code>, then change your password to your own private secret inside your account settings.
+              </li>
+            </ol>
+          </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  SEDS Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="engineer@sedsrec.org"
-                    className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
+          {/* Admin Contact Box */}
+          <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5 text-gray-400" />
+              <span>Platform Administrator Contact</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 bg-white border border-gray-200 px-3 py-2 rounded-lg">
+              <span className="font-mono text-xs text-gray-800 truncate select-all">
+                {adminEmail}
+              </span>
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 shrink-0 cursor-pointer"
+                title="Copy email address"
               >
-                <span>{loading ? 'Sending link...' : 'Send Recovery Link'}</span>
-                <ArrowRight className="w-4 h-4" />
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-600">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
-              <p className="text-xs text-gray-500">
-                Create a new secure password for your SEDS account.
-              </p>
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  New Password
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                  <input
-                    type="password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="At least 8 characters"
-                    className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat new password"
-                    className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                <span>{loading ? 'Updating password...' : 'Update Password & Sign In'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          )}
-
-          <div className="pt-3 border-t border-gray-100 text-center">
+          <div className="pt-2 border-t border-gray-100 text-center">
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 font-medium transition-colors"
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Back to Sign In</span>
             </Link>
           </div>

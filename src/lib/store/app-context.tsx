@@ -87,6 +87,7 @@ interface AppContextType {
   updateUser: (userId: string, updates: Partial<Profile>) => Promise<void>;
   suspendUser: (userId: string) => Promise<void>;
   activateUser: (userId: string) => Promise<void>;
+  adminResetPassword: (userId: string) => Promise<{ success?: boolean; error?: string; password?: string }>;
   createTeam: (data: { name: string; description: string; icon: string; color: string; accent: string }) => Promise<Team>;
   updateTeam: (teamId: string, updates: Partial<Team>) => Promise<void>;
   archiveTeam: (teamId: string) => Promise<void>;
@@ -1109,6 +1110,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (user) await fetchAllData(user.id);
   };
 
+  const adminResetPassword = async (userId: string): Promise<{ success?: boolean; error?: string; password?: string }> => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, password: 'Seds@2026' }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        return { error: json.error || 'Failed to reset user password' };
+      }
+      return { success: true, password: json.password || 'Seds@2026' };
+    } catch (err: any) {
+      return { error: err.message || 'Network error while resetting password' };
+    }
+  };
+
   // Notifications Operations
   const markNotificationRead = async (id: string) => {
     await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', id);
@@ -1224,6 +1242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateUser,
     suspendUser,
     activateUser,
+    adminResetPassword,
     createTeam,
     updateTeam,
     archiveTeam,

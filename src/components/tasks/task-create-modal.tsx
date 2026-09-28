@@ -44,8 +44,8 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
   const [requiresApproval, setRequiresApproval] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Available team members for assignment
-  const teamMembers = allProfiles.filter(p => p.team_id === teamId);
+  // Available team members for assignment (Admins are strictly excluded from assignment lists)
+  const teamMembers = allProfiles.filter(p => p.team_id === teamId && p.role !== 'ADMIN' && (p.account_status || 'ACTIVE') === 'ACTIVE');
   const teamSprints = sprints.filter(s => s.team_id === teamId);
 
   const handleToggleAssignee = (userId: string) => {

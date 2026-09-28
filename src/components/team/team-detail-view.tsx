@@ -25,7 +25,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({ teamId }) => {
   const isLeadOfThisTeam = currentUser.role === 'TEAM_LEAD' && currentUser.team_id === team.id;
   const canManage = isOfficeBearer || isLeadOfThisTeam;
 
-  const teamMembers = allProfiles.filter(p => p.team_id === team.id);
+  const teamMembers = allProfiles.filter(p => p.team_id === team.id && p.role !== 'ADMIN');
   
   const teamSprints = sprints.filter(s => s.team_id === team.id);
   const activeSprint = teamSprints.find(s => s.status === 'ACTIVE');

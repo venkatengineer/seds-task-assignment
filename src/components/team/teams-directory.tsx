@@ -81,7 +81,7 @@ export const TeamsDirectory: React.FC = () => {
       {/* Grid of Teams */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {teams.map(team => {
-          const teamMembers = allProfiles.filter(p => p.team_id === team.id);
+          const teamMembers = allProfiles.filter(p => p.team_id === team.id && p.role !== 'ADMIN');
           const teamLeads = teamMembers.filter(p => p.role === 'TEAM_LEAD');
           const teamSprints = sprints.filter(s => s.team_id === team.id);
           const activeSprint = teamSprints.find(s => s.status === 'ACTIVE');

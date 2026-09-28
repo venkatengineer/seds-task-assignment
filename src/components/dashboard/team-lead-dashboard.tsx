@@ -27,7 +27,7 @@ export const TeamLeadDashboard: React.FC<{
     created_at: '',
     updated_at: '',
   };
-  const teamMembers = allProfiles.filter(p => userTeam.id && p.team_id === userTeam.id);
+  const teamMembers = allProfiles.filter(p => userTeam.id && p.team_id === userTeam.id && p.role !== 'ADMIN');
   const teamTasks = tasks.filter(t => userTeam.id && t.team_id === userTeam.id);
   const activeSprint = sprints.find(s => userTeam.id && s.team_id === userTeam.id && s.status === 'ACTIVE') || sprints.find(s => userTeam.id && s.team_id === userTeam.id);
 

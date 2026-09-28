@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to establish user account' }, { status: 500 });
     }
 
-    // 2. Upsert Profile in public.profiles
+    // 2. Upsert Profile in public.profiles (Admins are org-wide, team_id is null)
+    const effectiveTeamId = role === 'ADMIN' ? null : (team_id || null);
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .upsert({
@@ -60,8 +61,8 @@ export async function POST(req: NextRequest) {
         email: cleanEmail,
         full_name: full_name.trim(),
         role,
-        team_id: team_id || null,
-        title: title?.trim() || (role === 'TEAM_LEAD' ? 'Team Lead' : 'SEDS Member'),
+        team_id: effectiveTeamId,
+        title: title?.trim() || (role === 'ADMIN' ? 'Platform Administrator' : (role === 'TEAM_LEAD' ? 'Team Lead' : 'SEDS Member')),
         account_status: 'ACTIVE',
         updated_at: new Date().toISOString(),
       })
@@ -72,11 +73,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
 
-    // 3. Upsert Team Member if team is assigned
-    if (team_id) {
+    // 3. Upsert Team Member only if team is assigned and role is not ADMIN
+    if (effectiveTeamId && role !== 'ADMIN') {
       await admin.from('team_members').upsert({
         user_id: authUserId,
-        team_id,
+        team_id: effectiveTeamId,
         membership_role: role,
       });
     }
@@ -88,6 +89,39 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error('Admin create user error:', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Reset member password to Seds@2026
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { user_id, password } = body;
+
+    if (!user_id) {
+      return NextResponse.json({ error: 'Missing required user_id' }, { status: 400 });
+    }
+
+    const resetPassword = password?.trim() || 'Seds@2026';
+    const admin = getSupabaseAdmin();
+
+    const { error: updateError } = await admin.auth.admin.updateUserById(user_id, {
+      password: resetPassword,
+      email_confirm: true,
+    });
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Password has been reset to ${resetPassword}`,
+      password: resetPassword,
+    });
+  } catch (err: any) {
+    console.error('Admin reset password error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }

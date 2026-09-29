@@ -19,9 +19,9 @@ export const LoginView: React.FC = () => {
   // If already logged in, redirect straight to dashboard
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace('/dashboard');
+      window.location.href = '/dashboard';
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ export const LoginView: React.FC = () => {
       setError(res.error);
       setLoading(false);
     } else {
-      router.replace('/dashboard');
+      window.location.href = '/dashboard';
     }
   };
 

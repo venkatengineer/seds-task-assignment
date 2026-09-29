@@ -41,22 +41,26 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
     e.preventDefault();
     setError(null);
 
-    if (!currentPassword) {
+    const cleanCurrent = currentPassword.trim();
+    const cleanNew = newPassword.trim();
+    const cleanConfirm = confirmPassword.trim();
+
+    if (!cleanCurrent) {
       setError('Please enter your current password.');
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (cleanNew.length < 6) {
       setError('New password must be at least 6 characters long.');
       return;
     }
 
-    if (newPassword === currentPassword) {
+    if (cleanNew === cleanCurrent) {
       setError('New password cannot be the same as your current password.');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (cleanNew !== cleanConfirm) {
       setError('New password and confirmation do not match.');
       return;
     }
@@ -64,7 +68,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
     setIsLoading(true);
 
     try {
-      const res = await updatePassword(newPassword, currentPassword);
+      const res = await updatePassword(cleanNew, cleanCurrent);
 
       if (res.error) {
         setError(res.error);

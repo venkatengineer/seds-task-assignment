@@ -5,6 +5,7 @@ import { useApp } from '@/lib/store/app-context';
 import { Profile, Team, UserRole } from '@/types/database';
 import { Modal } from '@/components/ui/modal';
 import { RoleBadge } from '@/components/ui/badges';
+import { ChangePasswordModal } from '@/components/profile/change-password-modal';
 import { 
   Users, UserPlus, Search, 
   Edit2, Ban, CheckCircle, AlertTriangle,
@@ -40,6 +41,8 @@ export const AdminDashboard: React.FC = () => {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [resettingUser, setResettingUser] = useState<Profile | null>(null);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isChangeMyPasswordOpen, setIsChangeMyPasswordOpen] = useState(false);
+  const [resetCustomPassword, setResetCustomPassword] = useState('Seds@2026');
 
   // New User Form State
   const [newName, setNewName] = useState('');
@@ -154,14 +157,15 @@ export const AdminDashboard: React.FC = () => {
     if (!resettingUser) return;
     try {
       setIsResettingPassword(true);
-      const res = await adminResetPassword(resettingUser.id);
+      const targetPass = resetCustomPassword.trim() || 'Seds@2026';
+      const res = await adminResetPassword(resettingUser.id, targetPass);
       if (res.error) {
         setFormError(res.error);
       } else {
         setSuccessNotification({
-          title: 'Password Reset Successful!',
-          message: `Password for ${resettingUser.full_name} (${resettingUser.email}) has been reset.`,
-          password: res.password || 'Seds@2026',
+          title: 'Password Updated Successfully!',
+          message: `Password for ${resettingUser.full_name} (${resettingUser.email}) has been set to "${res.password || targetPass}".`,
+          password: res.password || targetPass,
         });
         setResettingUser(null);
       }
@@ -244,10 +248,19 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsChangeMyPasswordOpen(true)}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:text-blue-600 bg-white hover:bg-blue-50/50 border border-gray-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+            title="Change your administrator password"
+          >
+            <KeyRound className="w-4 h-4 text-blue-600" />
+            <span>Change My Password</span>
+          </button>
           <button
             onClick={() => setIsCreateTeamOpen(true)}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-xs transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4 text-gray-500" />
             <span>Create Team</span>
@@ -258,7 +271,7 @@ export const AdminDashboard: React.FC = () => {
               setNewTeamId(teams[0]?.id || '');
               setIsCreateUserOpen(true);
             }}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Provision Member</span>
@@ -432,8 +445,15 @@ export const AdminDashboard: React.FC = () => {
                   return (
                     <tr key={user.id} className="hover:bg-gray-50/80 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-gray-900">{user.full_name}</div>
-                        <div className="text-[11px] text-gray-500 font-mono flex items-center gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900">{user.full_name}</span>
+                          {user.id === currentUser.id && (
+                            <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded-sm">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 font-mono flex items-center gap-1 mt-0.5">
                           <Mail className="w-3 h-3 text-gray-400" />
                           <span>{user.email}</span>
                         </div>
@@ -476,40 +496,57 @@ export const AdminDashboard: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setEditingUser(user)}
-                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
-                            title="Edit member details"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => setResettingUser(user)}
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors cursor-pointer"
-                            title="Reset password to Seds@2026"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </button>
-
-                          {isSuspended ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {user.id === currentUser.id ? (
                             <button
-                              onClick={() => activateUser(user.id)}
-                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
-                              title="Reactivate account"
+                              type="button"
+                              onClick={() => setIsChangeMyPasswordOpen(true)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors cursor-pointer"
+                              title="Change your admin password"
                             >
-                              <CheckCircle className="w-3.5 h-3.5" />
+                              <KeyRound className="w-3.5 h-3.5" />
+                              <span>Change Password</span>
                             </button>
                           ) : (
-                            <button
-                              onClick={() => suspendUser(user.id)}
-                              disabled={user.id === currentUser.id}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 rounded-md transition-colors cursor-pointer"
-                              title="Suspend account"
-                            >
-                              <Ban className="w-3.5 h-3.5" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => setEditingUser(user)}
+                                className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+                                title="Edit member details"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setResetCustomPassword('Seds@2026');
+                                  setResettingUser(user);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors cursor-pointer"
+                                title="Reset or update member password"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+
+                              {isSuspended ? (
+                                <button
+                                  onClick={() => activateUser(user.id)}
+                                  className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
+                                  title="Reactivate account"
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => suspendUser(user.id)}
+                                  disabled={user.id === currentUser.id}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 rounded-md transition-colors cursor-pointer"
+                                  title="Suspend account"
+                                >
+                                  <Ban className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -909,7 +946,7 @@ export const AdminDashboard: React.FC = () => {
         <Modal
           isOpen={Boolean(resettingUser)}
           onClose={() => setResettingUser(null)}
-          title="Reset Member Password"
+          title="Reset / Update Member Password"
           size="sm"
         >
           <div className="space-y-4 py-1">
@@ -917,17 +954,36 @@ export const AdminDashboard: React.FC = () => {
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg shrink-0">
                 <KeyRound className="w-5 h-5" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 flex-1">
                 <p className="text-xs text-gray-700 leading-relaxed">
-                  Are you sure you want to reset the password for{' '}
-                  <strong className="text-gray-900">{resettingUser.full_name}</strong> (
-                  <span className="font-mono text-gray-600">{resettingUser.email}</span>)?
+                  Reset account password for <strong className="text-gray-900">{resettingUser.full_name}</strong> (
+                  <span className="font-mono text-gray-600">{resettingUser.email}</span>).
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  Their password will be reset to the organization default:
-                </p>
-                <div className="mt-1 font-mono text-xs font-bold text-amber-800 bg-amber-50/80 border border-amber-200 px-2.5 py-1.5 rounded inline-block">
-                  Seds@2026
+
+                <div className="mt-3 space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    New Password
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={resetCustomPassword}
+                      onChange={(e) => setResetCustomPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      className="w-full text-xs px-3 py-2 bg-white border border-gray-300 rounded-lg font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setResetCustomPassword('Seds@2026')}
+                      className="shrink-0 px-2.5 py-2 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer"
+                      title="Reset to default Seds@2026"
+                    >
+                      Default
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Default: <span className="font-mono font-semibold text-gray-700">Seds@2026</span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -943,19 +999,19 @@ export const AdminDashboard: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={isResettingPassword}
+                disabled={isResettingPassword || !resetCustomPassword.trim()}
                 onClick={handleConfirmResetPassword}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isResettingPassword ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Resetting...</span>
+                    <span>Updating...</span>
                   </>
                 ) : (
                   <>
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset to Seds@2026</span>
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Set Password</span>
                   </>
                 )}
               </button>
@@ -963,6 +1019,12 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* Admin's Own Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangeMyPasswordOpen}
+        onClose={() => setIsChangeMyPasswordOpen(false)}
+      />
     </div>
   );
 };

@@ -107,6 +107,17 @@ export const Topbar: React.FC<TopbarProps> = ({
         {/* Dual-Channel Notification Center */}
         <NotificationCenter />
 
+        {/* Change Password Button (Visible for all roles) */}
+        <button
+          type="button"
+          onClick={() => setIsChangePasswordOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 shadow-2xs transition-colors cursor-pointer"
+          title="Change Password"
+        >
+          <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+          <span className="hidden md:inline font-semibold">Change Password</span>
+        </button>
+
         {/* Real User Profile Menu */}
         <div className="relative" ref={profileRef}>
           <button

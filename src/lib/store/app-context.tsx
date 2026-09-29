@@ -87,7 +87,7 @@ interface AppContextType {
   updateUser: (userId: string, updates: Partial<Profile>) => Promise<void>;
   suspendUser: (userId: string) => Promise<void>;
   activateUser: (userId: string) => Promise<void>;
-  adminResetPassword: (userId: string) => Promise<{ success?: boolean; error?: string; password?: string }>;
+  adminResetPassword: (userId: string, customPassword?: string) => Promise<{ success?: boolean; error?: string; password?: string }>;
   createTeam: (data: { name: string; description: string; icon: string; color: string; accent: string }) => Promise<Team>;
   updateTeam: (teamId: string, updates: Partial<Team>) => Promise<void>;
   archiveTeam: (teamId: string) => Promise<void>;
@@ -582,21 +582,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Auth Action: Update Password
   const updatePassword = async (newPassword: string, currentPassword?: string): Promise<{ error?: string }> => {
     try {
-      if (!newPassword || newPassword.length < 6) {
+      const cleanNew = newPassword?.trim();
+      const cleanCurrent = currentPassword?.trim();
+
+      if (!cleanNew || cleanNew.length < 6) {
         return { error: 'New password must be at least 6 characters long.' };
       }
 
-      if (currentPassword && currentUser.email) {
+      if (cleanCurrent && currentUser.email) {
         const { error: verifyErr } = await supabase.auth.signInWithPassword({
-          email: currentUser.email,
-          password: currentPassword,
+          email: currentUser.email.trim().toLowerCase(),
+          password: cleanCurrent,
         });
         if (verifyErr) {
           return { error: 'Current password is incorrect. Please try again.' };
         }
       }
 
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { error } = await supabase.auth.updateUser({ password: cleanNew });
       return error ? { error: error.message } : {};
     } catch (err: any) {
       return { error: err.message || 'Failed to update password.' };
@@ -1155,18 +1158,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (user) await fetchAllData(user.id);
   };
 
-  const adminResetPassword = async (userId: string): Promise<{ success?: boolean; error?: string; password?: string }> => {
+  const adminResetPassword = async (userId: string, customPassword?: string): Promise<{ success?: boolean; error?: string; password?: string }> => {
     try {
+      const targetPassword = customPassword?.trim() || 'Seds@2026';
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, password: 'Seds@2026' }),
+        body: JSON.stringify({ user_id: userId, password: targetPassword }),
       });
       const json = await res.json();
       if (!res.ok) {
         return { error: json.error || 'Failed to reset user password' };
       }
-      return { success: true, password: json.password || 'Seds@2026' };
+      return { success: true, password: json.password || targetPassword };
     } catch (err: any) {
       return { error: err.message || 'Network error while resetting password' };
     }

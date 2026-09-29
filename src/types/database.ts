@@ -68,6 +68,34 @@ export interface Sprint {
   completed_points?: number;
 }
 
+export type SprintDocumentType = 
+  | 'DESIGN_REVIEW' 
+  | 'TEST_REPORT' 
+  | 'SPECIFICATION' 
+  | 'FLIGHT_DOC' 
+  | 'SCHEMATIC' 
+  | 'MISSION_DOC' 
+  | 'OTHER';
+
+export interface SprintDocument {
+  id: string;
+  sprint_id: string;
+  team_id: string | null;
+  title: string;
+  description: string | null;
+  document_type: SprintDocumentType;
+  file_name: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  file_data: string | null; // Stored directly in the database (Base64 data URI or raw text)
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+  uploader?: Profile;
+  sprint_name?: string;
+  team_name?: string;
+}
+
 export interface TaskAssignee {
   id: string;
   task_id: string;

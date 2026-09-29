@@ -10,7 +10,7 @@ import {
   Users, UserPlus, Search, 
   Edit2, Ban, CheckCircle, AlertTriangle,
   UserCheck, UserX, Mail, Building, Plus,
-  RotateCcw, KeyRound, Loader2
+  RotateCcw, KeyRound, Loader2, Globe, ChevronDown
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -48,19 +48,20 @@ export const AdminDashboard: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('TEAM_MEMBER');
-  const [newTeamId, setNewTeamId] = useState<string>(teams[0]?.id || '');
+  const [newTeamId, setNewTeamId] = useState<string>('');
   const [newTitle, setNewTitle] = useState('');
   const [newPassword, setNewPassword] = useState('Seds@2026');
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successNotification, setSuccessNotification] = useState<{ title: string; message: string; password?: string } | null>(null);
+  const [roleChangeToast, setRoleChangeToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Auto-sync team selection whenever teams load or change
+  // Auto-sync team selection whenever teams load or change, ONLY for team roles (never force on Office Bearer or Admin)
   useEffect(() => {
-    if (teams.length > 0 && !newTeamId) {
+    if ((newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') && teams.length > 0 && !newTeamId) {
       setNewTeamId(teams[0].id);
     }
-  }, [teams, newTeamId]);
+  }, [teams, newRole, newTeamId]);
 
   // New Team Form State
   const [newTeamName, setNewTeamName] = useState('');
@@ -101,9 +102,10 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    // Office Bearers and Admins strictly have Org-Wide access (no team assignment)
     const effectiveTeamId = (newRole === 'OFFICE_BEARER' || newRole === 'ADMIN')
-      ? (newTeamId || null)
-      : (newTeamId || (teams.length > 0 ? teams[0].id : ''));
+      ? null
+      : (newTeamId || (teams.length > 0 ? teams[0].id : null));
 
     if ((newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') && !effectiveTeamId) {
       setFormError('Team Members and Team Leads must be assigned to an active team. Please create a team first if none exist.');
@@ -127,7 +129,7 @@ export const AdminDashboard: React.FC = () => {
 
       await createUser({
         full_name: newName.trim(),
-        email: newEmail.trim().toLowerCase(),
+        email: cleanEmail,
         role: newRole,
         team_id: effectiveTeamId,
         title: newTitle.trim() || undefined,
@@ -136,13 +138,15 @@ export const AdminDashboard: React.FC = () => {
 
       setSuccessNotification({
         title: 'Member Account Provisioned Successfully!',
-        message: `${newName.trim()} (${newEmail.trim().toLowerCase()}) has been activated in the system.`,
+        message: `${newName.trim()} (${cleanEmail}) has been activated with ${newRole === 'OFFICE_BEARER' || newRole === 'ADMIN' ? 'Organization-Wide Access' : 'assigned team'}.`,
         password: initialPass,
       });
 
       // Reset
       setNewName('');
       setNewEmail('');
+      setNewRole('TEAM_MEMBER');
+      setNewTeamId(teams[0]?.id || '');
       setNewTitle('');
       setNewPassword('Seds@2026');
       setIsCreateUserOpen(false);
@@ -150,6 +154,43 @@ export const AdminDashboard: React.FC = () => {
       setFormError(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickRoleChange = async (targetUser: Profile, newRole: UserRole) => {
+    if (targetUser.role === newRole) return;
+
+    // Office Bearers and Admins always have Org-Wide access (team_id is null)
+    let targetTeamId: string | null = null;
+    if (newRole === 'OFFICE_BEARER' || newRole === 'ADMIN') {
+      targetTeamId = null;
+    } else {
+      // Preserve existing team if user had one; if switching from Org-Wide, assign first available team
+      targetTeamId = targetUser.team_id || (teams.length > 0 ? teams[0].id : null);
+    }
+
+    try {
+      await updateUser(targetUser.id, {
+        role: newRole,
+        team_id: targetTeamId,
+        title: (newRole === 'OFFICE_BEARER' && (!targetUser.title || targetUser.title === 'SEDS Member' || targetUser.title === 'Team Lead'))
+          ? 'Office Bearer'
+          : targetUser.title,
+      });
+
+      const teamName = targetTeamId ? (teams.find(t => t.id === targetTeamId)?.name || 'Team') : 'Org-Wide Access';
+      const roleLabel = newRole.replace('_', ' ');
+      setRoleChangeToast({
+        message: `Updated ${targetUser.full_name}'s role to ${roleLabel} (${newRole === 'OFFICE_BEARER' || newRole === 'ADMIN' ? 'Org-Wide Access' : teamName})`,
+        type: 'success',
+      });
+      setTimeout(() => setRoleChangeToast(null), 4000);
+    } catch (err: unknown) {
+      setRoleChangeToast({
+        message: err instanceof Error ? err.message : 'Failed to update member role',
+        type: 'error',
+      });
+      setTimeout(() => setRoleChangeToast(null), 4000);
     }
   };
 
@@ -205,17 +246,32 @@ export const AdminDashboard: React.FC = () => {
     e.preventDefault();
     if (!editingUser) return;
 
-    if ((editingUser.role === 'TEAM_MEMBER' || editingUser.role === 'TEAM_LEAD') && !editingUser.team_id) {
-      alert('Team Members and Team Leads must be assigned to a team.');
+    const finalTeamId = (editingUser.role === 'OFFICE_BEARER' || editingUser.role === 'ADMIN')
+      ? null
+      : (editingUser.team_id || (teams.length > 0 ? teams[0].id : null));
+
+    if ((editingUser.role === 'TEAM_MEMBER' || editingUser.role === 'TEAM_LEAD') && !finalTeamId) {
+      alert('Team Members and Team Leads must be assigned to an active team.');
       return;
     }
 
-    await updateUser(editingUser.id, {
-      full_name: editingUser.full_name,
-      role: editingUser.role,
-      team_id: editingUser.team_id,
-      title: editingUser.title,
-    });
+    try {
+      await updateUser(editingUser.id, {
+        full_name: editingUser.full_name,
+        role: editingUser.role,
+        team_id: finalTeamId,
+        title: editingUser.title,
+      });
+
+      setRoleChangeToast({
+        message: `Updated profile for ${editingUser.full_name} (${editingUser.role.replace('_', ' ')})`,
+        type: 'success',
+      });
+      setTimeout(() => setRoleChangeToast(null), 4000);
+    } catch (err: unknown) {
+      alert('Failed to update member: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+
     setEditingUser(null);
   };
 
@@ -460,7 +516,28 @@ export const AdminDashboard: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4">
-                        <RoleBadge role={user.role} size="sm" />
+                        <div className="relative inline-flex items-center">
+                          <select
+                            value={user.role}
+                            onChange={(e) => handleQuickRoleChange(user, e.target.value as UserRole)}
+                            className={`text-[11px] font-semibold py-1 px-2.5 rounded-lg border cursor-pointer transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-500 appearance-none pr-6 shadow-2xs ${
+                              user.role === 'ADMIN'
+                                ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                : user.role === 'OFFICE_BEARER'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                : user.role === 'TEAM_LEAD'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            }`}
+                            title="Click to change member role anytime"
+                          >
+                            <option value="TEAM_MEMBER">Team Member</option>
+                            <option value="TEAM_LEAD">Team Lead</option>
+                            <option value="OFFICE_BEARER">Office Bearer (Org-Wide)</option>
+                            <option value="ADMIN">Platform Admin</option>
+                          </select>
+                          <ChevronDown className="w-3 h-3 text-gray-500 absolute right-1.5 pointer-events-none" />
+                        </div>
                       </td>
 
                       <td className="py-3 px-4">
@@ -476,7 +553,12 @@ export const AdminDashboard: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4">
-                        {assignedTeam ? (
+                        {user.role === 'OFFICE_BEARER' || user.role === 'ADMIN' ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                            <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span>Org-Wide Access</span>
+                          </span>
+                        ) : assignedTeam ? (
                           <div className="flex items-center gap-1.5 font-medium text-gray-900">
                             <span 
                               className="w-2 h-2 rounded-full shrink-0" 
@@ -485,9 +567,7 @@ export const AdminDashboard: React.FC = () => {
                             <span>{assignedTeam.name}</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 italic">
-                            {user.role === 'OFFICE_BEARER' || user.role === 'ADMIN' ? 'Org-Wide' : 'Unassigned'}
-                          </span>
+                          <span className="text-gray-400 italic text-xs">Unassigned</span>
                         )}
                       </td>
 
@@ -582,7 +662,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           ) : (
             teams.map((team) => {
-              const teamMembers = allProfiles.filter(p => p.team_id === team.id && p.role !== 'ADMIN');
+              const teamMembers = allProfiles.filter(p => p.team_id === team.id && p.role !== 'ADMIN' && p.role !== 'OFFICE_BEARER');
               const teamLeads = teamMembers.filter(p => p.role === 'TEAM_LEAD');
 
               return (
@@ -668,32 +748,46 @@ export const AdminDashboard: React.FC = () => {
               <label className="block text-xs font-semibold text-gray-700 mb-1">System Role</label>
               <select
                 value={newRole}
-                onChange={(e) => setNewRole(e.target.value as UserRole)}
+                onChange={(e) => {
+                  const role = e.target.value as UserRole;
+                  setNewRole(role);
+                  if (role === 'OFFICE_BEARER' || role === 'ADMIN') {
+                    setNewTeamId('');
+                  } else if (!newTeamId && teams.length > 0) {
+                    setNewTeamId(teams[0].id);
+                  }
+                }}
                 className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:border-blue-500 text-gray-900"
               >
                 <option value="TEAM_MEMBER">Team Member</option>
                 <option value="TEAM_LEAD">Team Lead</option>
-                <option value="OFFICE_BEARER">Office Bearer</option>
+                <option value="OFFICE_BEARER">Office Bearer (Org-Wide)</option>
                 <option value="ADMIN">Platform Admin</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Assigned Team {(newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') && <span className="text-red-500">*</span>}
+                Assigned Team {(newRole === 'TEAM_MEMBER' || newRole === 'TEAM_LEAD') ? <span className="text-red-500">*</span> : null}
               </label>
-              <select
-                value={newTeamId || (teams[0]?.id || '')}
-                onChange={(e) => setNewTeamId(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:border-blue-500 text-gray-900"
-              >
-                {(newRole === 'OFFICE_BEARER' || newRole === 'ADMIN') && (
-                  <option value="">None (Org-wide access)</option>
-                )}
-                {teams.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+              {(newRole === 'OFFICE_BEARER' || newRole === 'ADMIN') ? (
+                <div className="w-full text-xs px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 flex items-center gap-1.5 font-medium">
+                  <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span>Org-Wide Access (Automatic)</span>
+                </div>
+              ) : (
+                <select
+                  value={newTeamId}
+                  onChange={(e) => setNewTeamId(e.target.value)}
+                  className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:border-blue-500 text-gray-900"
+                  required
+                >
+                  <option value="" disabled>Select an active team...</option>
+                  {teams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
@@ -829,28 +923,46 @@ export const AdminDashboard: React.FC = () => {
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Role</label>
                 <select
                   value={editingUser.role}
-                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as UserRole })}
+                  onChange={(e) => {
+                    const r = e.target.value as UserRole;
+                    setEditingUser({
+                      ...editingUser,
+                      role: r,
+                      team_id: (r === 'OFFICE_BEARER' || r === 'ADMIN')
+                        ? null
+                        : (editingUser.team_id || (teams.length > 0 ? teams[0].id : null)),
+                    });
+                  }}
                   className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden text-gray-900"
                 >
                   <option value="TEAM_MEMBER">Team Member</option>
                   <option value="TEAM_LEAD">Team Lead</option>
-                  <option value="OFFICE_BEARER">Office Bearer</option>
+                  <option value="OFFICE_BEARER">Office Bearer (Org-Wide)</option>
                   <option value="ADMIN">Platform Admin</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Assigned Team</label>
-                <select
-                  value={editingUser.team_id || ''}
-                  onChange={(e) => setEditingUser({ ...editingUser, team_id: e.target.value || null })}
-                  className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden text-gray-900"
-                >
-                  <option value="">None / Org-wide</option>
-                  {teams.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Assigned Team {(editingUser.role === 'TEAM_MEMBER' || editingUser.role === 'TEAM_LEAD') ? <span className="text-red-500">*</span> : null}
+                </label>
+                {(editingUser.role === 'OFFICE_BEARER' || editingUser.role === 'ADMIN') ? (
+                  <div className="w-full text-xs px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 flex items-center gap-1.5 font-medium">
+                    <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span>Org-Wide Access (Automatic)</span>
+                  </div>
+                ) : (
+                  <select
+                    value={editingUser.team_id || (teams[0]?.id || '')}
+                    onChange={(e) => setEditingUser({ ...editingUser, team_id: e.target.value || null })}
+                    className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-hidden text-gray-900"
+                    required
+                  >
+                    {teams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
@@ -1025,6 +1137,22 @@ export const AdminDashboard: React.FC = () => {
         isOpen={isChangeMyPasswordOpen}
         onClose={() => setIsChangeMyPasswordOpen(false)}
       />
+
+      {/* Floating Role Change Notification */}
+      {roleChangeToast && (
+        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold animate-in slide-in-from-bottom-5 duration-200 ${
+          roleChangeToast.type === 'success'
+            ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+            : 'bg-red-50 text-red-900 border-red-200'
+        }`}>
+          {roleChangeToast.type === 'success' ? (
+            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          )}
+          <span>{roleChangeToast.message}</span>
+        </div>
+      )}
     </div>
   );
 };

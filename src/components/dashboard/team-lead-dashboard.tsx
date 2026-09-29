@@ -1,21 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/lib/store/app-context';
 import { 
-  Users, Flag, Plus, ArrowRight, BarChart3 
+  Users, Flag, Plus, ArrowRight, BarChart3, Award, FolderArchive 
 } from 'lucide-react';
 import Link from 'next/link';
 import { UserAvatar } from '@/components/ui/avatar';
 import { TaskStatusBadge, SprintStatusBadge } from '@/components/ui/badges';
 import { formatDate } from '@/lib/utils';
-import { TaskStatus } from '@/types/database';
+import { TaskStatus, Profile } from '@/types/database';
+import { MemberAnalyticsModal } from '@/components/analytics/member-analytics-modal';
+import { SprintDocumentsModal } from '@/components/sprint/sprint-documents-modal';
 
 export const TeamLeadDashboard: React.FC<{
   onSelectTask?: (taskId: string) => void;
   onCreateTask?: () => void;
-}> = ({ onCreateTask }) => {
-  const { currentUser, teams, sprints, tasks, allProfiles } = useApp();
+}> = ({ onSelectTask, onCreateTask }) => {
+  const { currentUser, teams, sprints, sprintDocuments, tasks, allProfiles } = useApp();
+  const [selectedMemberForInspection, setSelectedMemberForInspection] = useState<Profile | null>(null);
+  const [isSprintDocsOpen, setIsSprintDocsOpen] = useState(false);
 
   const userTeam = teams.find(t => t.id === currentUser.team_id) || teams[0] || {
     id: '',
@@ -27,7 +31,7 @@ export const TeamLeadDashboard: React.FC<{
     created_at: '',
     updated_at: '',
   };
-  const teamMembers = allProfiles.filter(p => userTeam.id && p.team_id === userTeam.id && p.role !== 'ADMIN');
+  const teamMembers = allProfiles.filter(p => userTeam.id && p.team_id === userTeam.id && p.role !== 'ADMIN' && p.role !== 'OFFICE_BEARER');
   const teamTasks = tasks.filter(t => userTeam.id && t.team_id === userTeam.id);
   const activeSprint = sprints.find(s => userTeam.id && s.team_id === userTeam.id && s.status === 'ACTIVE') || sprints.find(s => userTeam.id && s.team_id === userTeam.id);
 
@@ -49,16 +53,22 @@ export const TeamLeadDashboard: React.FC<{
     count: sprintTasks.filter(t => t.status === st).length,
   }));
 
-  // Member workload breakdown
+  // Member workload & story points breakdown
   const memberWorkload = teamMembers.map(member => {
-    const assignedTasks = teamTasks.filter(t => t.assignee_ids.includes(member.id));
+    const assignedTasks = teamTasks.filter(t => t.assignee_ids && t.assignee_ids.includes(member.id));
     const activeAssigned = assignedTasks.filter(t => t.status !== 'COMPLETED');
-    const totalPoints = assignedTasks.reduce((acc, t) => acc + t.story_points, 0);
+    const completedAssigned = assignedTasks.filter(t => t.status === 'COMPLETED');
+    const totalPoints = assignedTasks.reduce((acc, t) => acc + (t.story_points || 0), 0);
+    const completedPoints = completedAssigned.reduce((acc, t) => acc + (t.story_points || 0), 0);
+    const completionRate = totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0;
     return {
       member,
       totalCount: assignedTasks.length,
       activeCount: activeAssigned.length,
+      completedCount: completedAssigned.length,
       totalPoints,
+      completedPoints,
+      completionRate,
     };
   });
 
@@ -101,6 +111,14 @@ export const TeamLeadDashboard: React.FC<{
             <Flag className="w-4 h-4 text-gray-500" />
             <span>Manage Sprint</span>
           </Link>
+          <Link
+            href="/analytics?view=members"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-blue-600 text-xs font-medium transition-colors shadow-xs"
+            title="Inspect member-wise completed story points and analytics"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Member Analytics</span>
+          </Link>
         </div>
       </div>
 
@@ -122,10 +140,22 @@ export const TeamLeadDashboard: React.FC<{
             </p>
           </div>
 
-          <div className="text-right flex items-center md:flex-col md:items-end justify-between gap-1">
-            <span className="text-xs text-gray-500">
-              {activeSprint ? `${formatDate(activeSprint.start_date)} - ${formatDate(activeSprint.end_date)}` : ''}
-            </span>
+          <div className="text-right flex items-center md:flex-col md:items-end justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {activeSprint && (
+                <button
+                  onClick={() => setIsSprintDocsOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 shadow-2xs transition-colors cursor-pointer"
+                  title="Inspect and upload deliverables/documents for this sprint"
+                >
+                  <FolderArchive className="w-3.5 h-3.5" />
+                  <span>Deliverables ({sprintDocuments.filter(d => d.sprint_id === activeSprint.id).length})</span>
+                </button>
+              )}
+              <span className="text-xs text-gray-500">
+                {activeSprint ? `${formatDate(activeSprint.start_date)} - ${formatDate(activeSprint.end_date)}` : ''}
+              </span>
+            </div>
             <div className="text-base font-bold text-gray-900">
               {completedTasks.length} / {sprintTasks.length} tasks completed
             </div>
@@ -176,19 +206,31 @@ export const TeamLeadDashboard: React.FC<{
               <Users className="w-4 h-4 text-blue-600" />
               <span>Team Workload & Engineer Assignments</span>
             </h3>
-            <span className="text-xs font-medium text-gray-500">{teamMembers.length} engineers</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500">{teamMembers.length} engineers</span>
+              {teamMembers.length > 0 && (
+                <button
+                  onClick={() => setSelectedMemberForInspection(teamMembers[0])}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>Inspect Analytics</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2.5">
-            {memberWorkload.map(({ member, activeCount, totalPoints }) => (
+            {memberWorkload.map(({ member, activeCount, completedCount, totalPoints, completedPoints, completionRate }) => (
               <div
                 key={member.id}
-                className="p-3 rounded-xl bg-gray-50/60 border border-gray-200 flex items-center justify-between gap-3"
+                onClick={() => setSelectedMemberForInspection(member)}
+                className="p-3.5 rounded-xl bg-gray-50/60 hover:bg-blue-50/30 border border-gray-200 hover:border-blue-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer transition-all hover:shadow-2xs group"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <UserAvatar user={member} size="md" />
                   <div className="truncate">
-                    <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                    <div className="text-xs font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate flex items-center gap-1.5">
                       <span>{member.full_name}</span>
                       {member.role === 'TEAM_LEAD' && (
                         <span className="text-[10px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded">Lead</span>
@@ -198,11 +240,30 @@ export const TeamLeadDashboard: React.FC<{
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-xs shrink-0">
+                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                   <div className="text-right">
-                    <div className="text-gray-900 font-semibold">{activeCount} active tasks</div>
-                    <div className="text-[11px] text-gray-500">{totalPoints} story points</div>
+                    <div className="text-xs font-mono font-semibold text-gray-900">
+                      <span className="text-emerald-600">{completedPoints}</span>
+                      <span className="text-gray-400"> / {totalPoints} pts</span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 flex items-center justify-end gap-1.5 mt-0.5">
+                      <span>{activeCount} active</span>
+                      <span className="text-gray-300">•</span>
+                      <span className="text-emerald-600 font-medium">{completionRate}% completed</span>
+                    </div>
                   </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedMemberForInspection(member);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-gray-200 hover:border-blue-300 shadow-2xs transition-colors cursor-pointer"
+                    title={`Inspect previous history & analytics for ${member.full_name}`}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Inspect</span>
+                  </button>
                 </div>
               </div>
             ))}
@@ -249,6 +310,26 @@ export const TeamLeadDashboard: React.FC<{
           </div>
         </div>
       </div>
+
+      {/* Member Analytics Inspection Modal */}
+      <MemberAnalyticsModal
+        isOpen={Boolean(selectedMemberForInspection)}
+        onClose={() => setSelectedMemberForInspection(null)}
+        member={selectedMemberForInspection}
+        teamMembers={teamMembers}
+        onSelectMember={(id) => {
+          const found = teamMembers.find(m => m.id === id);
+          if (found) setSelectedMemberForInspection(found);
+        }}
+        onSelectTask={onSelectTask}
+      />
+
+      {/* Sprint Documents & Deliverables Modal */}
+      <SprintDocumentsModal
+        isOpen={isSprintDocsOpen}
+        onClose={() => setIsSprintDocsOpen(false)}
+        sprint={activeSprint || null}
+      />
     </div>
   );
 };

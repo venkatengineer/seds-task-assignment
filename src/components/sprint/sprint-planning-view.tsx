@@ -8,16 +8,17 @@ import { AvatarGroup } from '@/components/ui/avatar';
 import { formatDate } from '@/lib/utils';
 import { 
   Plus, Flag, Play, CheckCircle2, ArrowRight, ArrowLeft, 
-  Layers 
+  Layers, FolderArchive 
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { SprintCreateModal } from './sprint-create-modal';
+import { SprintDocumentsModal } from './sprint-documents-modal';
 import { TaskCreateModal } from '@/components/tasks/task-create-modal';
 import { TaskDetailDrawer } from '@/components/tasks/task-detail-drawer';
 
 export const SprintPlanningView: React.FC = () => {
   const { 
-    currentUser, teams, sprints, tasks, 
+    currentUser, teams, sprints, sprintDocuments, tasks, 
     startSprint, completeSprint, moveTaskToSprint 
   } = useApp();
 
@@ -59,6 +60,7 @@ export const SprintPlanningView: React.FC = () => {
   // Modals state
   const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [taskModalSprintId, setTaskModalSprintId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -192,30 +194,42 @@ export const SprintPlanningView: React.FC = () => {
               </p>
             </div>
 
-            {/* Lifecycle Buttons (Start / Complete) */}
-            {canManage && (
-              <div className="flex items-center gap-2">
-                {currentSprint.status === 'PLANNED' && (
-                  <button
-                    onClick={handleStartSprint}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Start Sprint</span>
-                  </button>
-                )}
+            {/* Sprint Actions (Deliverables & Lifecycle) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setIsDocumentsModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-gray-700 hover:text-blue-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                title="Inspect and upload deliverables/documents stored in database"
+              >
+                <FolderArchive className="w-3.5 h-3.5 text-blue-600" />
+                <span>Deliverables ({sprintDocuments.filter(d => d.sprint_id === currentSprint?.id).length})</span>
+              </button>
 
-                {currentSprint.status === 'ACTIVE' && (
-                  <button
-                    onClick={handleCompleteSprint}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Complete Sprint</span>
-                  </button>
-                )}
-              </div>
-            )}
+              {/* Lifecycle Buttons (Start / Complete) */}
+              {canManage && (
+                <div className="flex items-center gap-2">
+                  {currentSprint.status === 'PLANNED' && (
+                    <button
+                      onClick={handleStartSprint}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Start Sprint</span>
+                    </button>
+                  )}
+
+                  {currentSprint.status === 'ACTIVE' && (
+                    <button
+                      onClick={handleCompleteSprint}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Complete Sprint</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Progress Bar & Telemetry */}
@@ -435,6 +449,13 @@ export const SprintPlanningView: React.FC = () => {
       <TaskDetailDrawer
         taskId={selectedTaskId}
         onClose={() => setSelectedTaskId(null)}
+      />
+
+      {/* Sprint Documents & Deliverables Modal */}
+      <SprintDocumentsModal
+        isOpen={isDocumentsModalOpen}
+        onClose={() => setIsDocumentsModalOpen(false)}
+        sprint={currentSprint || null}
       />
     </div>
   );

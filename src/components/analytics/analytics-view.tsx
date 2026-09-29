@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/lib/store/app-context';
 import { Permissions } from '@/lib/permissions';
 import { 
@@ -9,11 +10,21 @@ import {
 } from 'recharts';
 import { 
   BarChart3, TrendingDown, 
-  Zap, Filter 
+  Zap, Filter, Users, Award 
 } from 'lucide-react';
+import { MemberDetailAnalytics } from './member-detail-analytics';
+import { TaskDetailDrawer } from '@/components/tasks/task-detail-drawer';
+import { UserAvatar } from '@/components/ui/avatar';
+import { RoleBadge } from '@/components/ui/badges';
 
 export const AnalyticsView: React.FC = () => {
   const { currentUser, teams, tasks, sprints, allProfiles } = useApp();
+  const searchParams = useSearchParams();
+
+  const initialView = searchParams.get('view') === 'members' ? 'members' : 'overview';
+  const [viewMode, setViewMode] = useState<'overview' | 'members'>(initialView);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(searchParams.get('member') || '');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const isOfficeBearer = Permissions.isOfficeBearer(currentUser);
 
@@ -144,14 +155,23 @@ export const AnalyticsView: React.FC = () => {
   const teamEngineers = useMemo(() => {
     return allProfiles.filter(p => {
       if (selectedTeamId !== 'ALL') return p.team_id === selectedTeamId;
+      if (currentUser.role === 'TEAM_LEAD') return p.team_id === currentUser.team_id;
       return p.role !== 'OFFICE_BEARER' && p.role !== 'ADMIN';
     });
-  }, [allProfiles, selectedTeamId]);
+  }, [allProfiles, selectedTeamId, currentUser]);
+
+  const currentSelectedMember = useMemo(() => {
+    if (selectedMemberId) {
+      const found = teamEngineers.find(m => m.id === selectedMemberId);
+      if (found) return found;
+    }
+    return teamEngineers[0] || null;
+  }, [teamEngineers, selectedMemberId]);
 
   const workloadData = useMemo(() => {
     return teamEngineers
       .map(member => {
-        const assigned = relevantTasks.filter(t => t.assignee_ids.includes(member.id));
+        const assigned = relevantTasks.filter(t => t.assignee_ids && t.assignee_ids.includes(member.id));
         const points = assigned.reduce((acc, t) => acc + (t.story_points || 0), 0);
         return {
           name: member.full_name.split(' ')[0],
@@ -176,7 +196,7 @@ export const AnalyticsView: React.FC = () => {
             SEDS Analytics & Metrics
           </h1>
           <p className="text-xs text-gray-500 mt-1">
-            Real sprint burn rates, task distribution models, and team delivery velocity.
+            Real sprint burn rates, task distribution models, member-wise completed points, and delivery velocity.
           </p>
         </div>
 
@@ -198,199 +218,302 @@ export const AnalyticsView: React.FC = () => {
         )}
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
-          <span className="text-[11px] font-mono text-gray-500 block uppercase font-medium">TOTAL TASKS</span>
-          <span className="text-2xl font-bold font-mono text-gray-900 mt-1 block">{totalTasksCount}</span>
-          <span className="text-[10px] text-gray-400 font-mono">Assigned & Backlog</span>
-        </div>
+      {/* Primary Tab Switcher: Subsystem Overview vs Member-Wise Analytics */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button
+          onClick={() => setViewMode('overview')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            viewMode === 'overview'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Subsystem Burndown & Overview</span>
+        </button>
 
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
-          <span className="text-[11px] font-mono text-emerald-600 block uppercase font-medium">COMPLETED</span>
-          <span className="text-2xl font-bold font-mono text-emerald-600 mt-1 block">{completedTasks}</span>
-          <span className="text-[10px] text-emerald-600 font-mono">{completionPercentage}% rate</span>
-        </div>
-
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
-          <span className="text-[11px] font-mono text-blue-600 block uppercase font-medium">POINTS BURNED</span>
-          <span className="text-2xl font-bold font-mono text-blue-600 mt-1 block">{completedPoints}</span>
-          <span className="text-[10px] text-gray-400 font-mono">of {totalPoints} total pts</span>
-        </div>
-
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
-          <span className="text-[11px] font-mono text-sky-600 block uppercase font-medium">IN PROGRESS</span>
-          <span className="text-2xl font-bold font-mono text-sky-600 mt-1 block">{inProgressTasks}</span>
-          <span className="text-[10px] text-gray-400 font-mono">Active tasks</span>
-        </div>
-
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
-          <span className="text-[11px] font-mono text-amber-600 block uppercase font-medium">OVERDUE</span>
-          <span className="text-2xl font-bold font-mono text-amber-600 mt-1 block">{overdueTasks}</span>
-          <span className="text-[10px] text-amber-600 font-mono">Requires attention</span>
-        </div>
-
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
-          <span className="text-[11px] font-mono text-rose-600 block uppercase font-medium">BLOCKED</span>
-          <span className="text-2xl font-bold font-mono text-rose-600 mt-1 block">{blockedTasks}</span>
-          <span className="text-[10px] text-rose-500 font-mono">Impediments logged</span>
-        </div>
+        <button
+          onClick={() => setViewMode('members')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            viewMode === 'members'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Member-Wise Analytics & History ({teamEngineers.length})</span>
+        </button>
       </div>
 
-      {/* Main Charts: Burndown & Status Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sprint Burndown Chart */}
-        <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-blue-600" />
-                <span>Sprint Burndown (Story Points)</span>
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {currentSprint ? `Live burndown for ${currentSprint.name}` : 'Ideal linear burn line vs actual remaining points.'}
-              </p>
+      {/* View 1: Member-Wise Analytics & History */}
+      {viewMode === 'members' && (
+        <div className="space-y-6">
+          {/* Member Picker Carousel / Grid */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase text-gray-500 tracking-wider">
+              <span>Select Subsystem Engineer to Inspect</span>
+              <span>{teamEngineers.length} engineers</span>
             </div>
-            {relevantSprints.length > 0 && (
-              <select
-                value={currentSprint?.id || ''}
-                onChange={(e) => setSelectedSprintId(e.target.value)}
-                className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 font-medium focus:outline-none focus:border-blue-500"
-              >
-                {relevantSprints.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.status})
-                  </option>
-                ))}
-              </select>
+
+            {teamEngineers.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-xl">
+                No engineers found in this subsystem team.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {teamEngineers.map(engineer => {
+                  const isSelected = currentSelectedMember?.id === engineer.id;
+                  const engTasks = tasks.filter(t => t.assignee_ids && t.assignee_ids.includes(engineer.id));
+                  const engCompleted = engTasks.filter(t => t.status === 'COMPLETED');
+                  const engTotalPts = engTasks.reduce((s, t) => s + (t.story_points || 0), 0);
+                  const engCompPts = engCompleted.reduce((s, t) => s + (t.story_points || 0), 0);
+
+                  return (
+                    <button
+                      key={engineer.id}
+                      onClick={() => setSelectedMemberId(engineer.id)}
+                      className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20 shadow-xs'
+                          : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
+                      }`}
+                    >
+                      <UserAvatar user={engineer} size="md" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-gray-900 truncate">
+                          {engineer.full_name}
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">
+                          {engineer.title || engineer.role}
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px]">
+                          <span className="font-semibold text-emerald-600">{engCompPts} pts</span>
+                          <span className="text-gray-400">/ {engTotalPts} pts</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
-          {burndownData.length > 0 ? (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={burndownData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                  <XAxis dataKey="day" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-                  <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="ideal"
-                    name="Ideal Burn"
-                    stroke="#9CA3AF"
-                    strokeDasharray="5 5"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="actual"
-                    name="Actual Remaining"
-                    stroke="#2563EB"
-                    strokeWidth={2.5}
-                    dot={{ r: 4, fill: '#2563EB' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
-              <TrendingDown className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-xs font-semibold text-gray-700">No Sprint Burndown Data</p>
-              <p className="text-[11px] text-gray-500 max-w-xs mt-1">
-                {relevantSprints.length === 0 
-                  ? 'No sprints found for this team. Create a sprint in Sprint Management to view live burndown metrics.'
-                  : 'No tasks with story points assigned to this sprint yet.'}
-              </p>
-            </div>
-          )}
+          {/* Member Detail Analytics */}
+          {currentSelectedMember ? (
+            <MemberDetailAnalytics
+              member={currentSelectedMember}
+              teamMembers={teamEngineers}
+              onSelectMember={setSelectedMemberId}
+              onSelectTask={setSelectedTaskId}
+            />
+          ) : null}
         </div>
+      )}
 
-        {/* Task Status Distribution Bar Chart */}
-        <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-600" />
-                <span>Task Distribution by Status</span>
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Breakdown across workflow states.
-              </p>
+      {/* View 2: Subsystem Overview & Burndown */}
+      {viewMode === 'overview' && (
+        <div className="space-y-6">
+          {/* KPI Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <span className="text-[11px] font-mono text-gray-500 block uppercase font-medium">TOTAL TASKS</span>
+              <span className="text-2xl font-bold font-mono text-gray-900 mt-1 block">{totalTasksCount}</span>
+              <span className="text-[10px] text-gray-400 font-mono">Assigned & Backlog</span>
+            </div>
+
+            <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <span className="text-[11px] font-mono text-emerald-600 block uppercase font-medium">COMPLETED</span>
+              <span className="text-2xl font-bold font-mono text-emerald-600 mt-1 block">{completedTasks}</span>
+              <span className="text-[10px] text-emerald-600 font-mono">{completionPercentage}% rate</span>
+            </div>
+
+            <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <span className="text-[11px] font-mono text-blue-600 block uppercase font-medium">POINTS BURNED</span>
+              <span className="text-2xl font-bold font-mono text-blue-600 mt-1 block">{completedPoints}</span>
+              <span className="text-[10px] text-gray-400 font-mono">of {totalPoints} total pts</span>
+            </div>
+
+            <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <span className="text-[11px] font-mono text-sky-600 block uppercase font-medium">IN PROGRESS</span>
+              <span className="text-2xl font-bold font-mono text-sky-600 mt-1 block">{inProgressTasks}</span>
+              <span className="text-[10px] text-gray-400 font-mono">Active tasks</span>
+            </div>
+
+            <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <span className="text-[11px] font-mono text-amber-600 block uppercase font-medium">OVERDUE</span>
+              <span className="text-2xl font-bold font-mono text-amber-600 mt-1 block">{overdueTasks}</span>
+              <span className="text-[10px] text-amber-600 font-mono">Requires attention</span>
+            </div>
+
+            <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <span className="text-[11px] font-mono text-rose-600 block uppercase font-medium">BLOCKED</span>
+              <span className="text-2xl font-bold font-mono text-rose-600 mt-1 block">{blockedTasks}</span>
+              <span className="text-[10px] text-rose-500 font-mono">Impediments logged</span>
             </div>
           </div>
 
-          {totalTasksCount > 0 ? (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={statusData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                  <XAxis dataKey="name" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
-                  <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
-                  />
-                  <Bar dataKey="count" name="Tasks" radius={[4, 4, 0, 0]}>
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+          {/* Main Charts: Burndown & Status Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Sprint Burndown Chart */}
+            <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4 text-blue-600" />
+                    <span>Sprint Burndown (Story Points)</span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {currentSprint ? `Live burndown for ${currentSprint.name}` : 'Ideal linear burn line vs actual remaining points.'}
+                  </p>
+                </div>
+                {relevantSprints.length > 0 && (
+                  <select
+                    value={currentSprint?.id || ''}
+                    onChange={(e) => setSelectedSprintId(e.target.value)}
+                    className="bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 font-medium focus:outline-none focus:border-blue-500"
+                  >
+                    {relevantSprints.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.status})
+                      </option>
                     ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
-              <BarChart3 className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-xs font-semibold text-gray-700">No Tasks Recorded</p>
-              <p className="text-[11px] text-gray-500 max-w-xs mt-1">
-                Tasks created and tracked in sprints will display their status distribution here.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+                  </select>
+                )}
+              </div>
 
-      {/* Member Workload Distribution Chart */}
-      <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-600" />
-              <span>Workload Allocation by Member (Story Points)</span>
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Assigned story points per team member.
-            </p>
+              {burndownData.length > 0 ? (
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={burndownData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                      <XAxis dataKey="day" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                      <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="ideal"
+                        name="Ideal Burn"
+                        stroke="#9CA3AF"
+                        strokeDasharray="5 5"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="actual"
+                        name="Actual Remaining"
+                        stroke="#2563EB"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: '#2563EB' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+                  <TrendingDown className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-xs font-semibold text-gray-700">No Sprint Burndown Data</p>
+                  <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+                    {relevantSprints.length === 0 
+                      ? 'No sprints found for this team. Create a sprint in Sprint Management to view live burndown metrics.'
+                      : 'No tasks with story points assigned to this sprint yet.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Task Status Distribution Bar Chart */}
+            <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-blue-600" />
+                    <span>Task Distribution by Status</span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Breakdown across workflow states.
+                  </p>
+                </div>
+              </div>
+
+              {totalTasksCount > 0 ? (
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={statusData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                      <XAxis dataKey="name" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                      <YAxis stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                      />
+                      <Bar dataKey="count" name="Tasks" radius={[4, 4, 0, 0]}>
+                        {statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+                  <BarChart3 className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-xs font-semibold text-gray-700">No Tasks Recorded</p>
+                  <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+                    Tasks created and tracked in sprints will display their status distribution here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Member Workload Distribution Chart */}
+          <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-blue-600" />
+                  <span>Workload Allocation by Member (Story Points)</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Assigned story points per team member.
+                </p>
+              </div>
+            </div>
+
+            {workloadData.length > 0 && workloadData.some(m => m.points > 0 || m.tasks > 0) ? (
+              <div className="h-60 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={workloadData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                    <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} width={80} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                    />
+                    <Bar dataKey="points" name="Story Points" fill="#3B82F6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-60 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+                <Zap className="w-8 h-8 text-gray-300 mb-2" />
+                <p className="text-xs font-semibold text-gray-700">No Workload Assigned</p>
+                <p className="text-[11px] text-gray-500 max-w-xs mt-1">
+                  Assign tasks with story points to engineers to see capacity and workload distribution.
+                </p>
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        {workloadData.length > 0 && workloadData.some(m => m.points > 0 || m.tasks > 0) ? (
-          <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={workloadData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
-                <YAxis dataKey="name" type="category" stroke="#9CA3AF" tick={{ fontSize: 11, fill: '#6B7280' }} width={80} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '8px', fontSize: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
-                />
-                <Bar dataKey="points" name="Story Points" fill="#3B82F6" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="h-60 flex flex-col items-center justify-center text-center p-6 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
-            <Zap className="w-8 h-8 text-gray-300 mb-2" />
-            <p className="text-xs font-semibold text-gray-700">No Workload Assigned</p>
-            <p className="text-[11px] text-gray-500 max-w-xs mt-1">
-              Assign tasks with story points to engineers to see capacity and workload distribution.
-            </p>
-          </div>
-        )}
-      </div>
+      {/* Task Detail Drawer */}
+      <TaskDetailDrawer
+        taskId={selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+      />
     </div>
   );
 };

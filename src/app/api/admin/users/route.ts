@@ -44,8 +44,8 @@ async function verifyAdminCaller(req: NextRequest): Promise<{ authorized: boolea
       .eq('id', callerUser.id)
       .single();
 
-    if (profileErr || !callerProfile || callerProfile.account_status === 'SUSPENDED' || callerProfile.role !== 'ADMIN') {
-      return { authorized: false, error: 'Forbidden: Platform Administrator privileges required.', status: 403 };
+    if (profileErr || !callerProfile || callerProfile.account_status === 'SUSPENDED' || (callerProfile.role !== 'ADMIN' && callerProfile.role !== 'OFFICE_BEARER')) {
+      return { authorized: false, error: 'Forbidden: Platform Administrator or Office Bearer privileges required.', status: 403 };
     }
 
     return { authorized: true };
@@ -110,8 +110,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to establish user account' }, { status: 500 });
     }
 
-    // 2. Upsert Profile in public.profiles (Admins are org-wide, team_id is null)
-    const effectiveTeamId = role === 'ADMIN' ? null : (team_id || null);
+    // 2. Upsert Profile in public.profiles (Admins and Office Bearers are org-wide, team_id is null)
+    const effectiveTeamId = (role === 'ADMIN' || role === 'OFFICE_BEARER') ? null : (team_id || null);
+    const defaultTitle = role === 'ADMIN' 
+      ? 'Platform Administrator' 
+      : role === 'OFFICE_BEARER' 
+      ? 'Office Bearer' 
+      : role === 'TEAM_LEAD' 
+      ? 'Team Lead' 
+      : 'SEDS Member';
+
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .upsert({
@@ -120,7 +128,7 @@ export async function POST(req: NextRequest) {
         full_name: full_name.trim(),
         role,
         team_id: effectiveTeamId,
-        title: title?.trim() || (role === 'ADMIN' ? 'Platform Administrator' : (role === 'TEAM_LEAD' ? 'Team Lead' : 'SEDS Member')),
+        title: title?.trim() || defaultTitle,
         account_status: 'ACTIVE',
         updated_at: new Date().toISOString(),
       })
@@ -131,8 +139,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
 
-    // 3. Upsert Team Member only if team is assigned and role is not ADMIN
-    if (effectiveTeamId && role !== 'ADMIN') {
+    // 3. Upsert Team Member only if team is assigned and role is not ADMIN or OFFICE_BEARER
+    if (effectiveTeamId && role !== 'ADMIN' && role !== 'OFFICE_BEARER') {
       await admin.from('team_members').upsert({
         user_id: authUserId,
         team_id: effectiveTeamId,
@@ -147,6 +155,91 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error('Admin create user error:', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Update member profile (role, team, designation, name, account status)
+export async function PUT(req: NextRequest) {
+  try {
+    const authCheck = await verifyAdminCaller(req);
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+    }
+
+    const body = await req.json();
+    const { user_id, role, team_id, full_name, title, account_status } = body;
+
+    if (!user_id) {
+      return NextResponse.json({ error: 'Missing required user_id' }, { status: 400 });
+    }
+
+    const admin = getSupabaseAdmin();
+
+    // Prepare profile updates
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (full_name !== undefined) updates.full_name = full_name.trim();
+    if (title !== undefined) updates.title = title?.trim() || null;
+    if (account_status !== undefined) updates.account_status = account_status;
+
+    let targetRole = role;
+    if (targetRole) {
+      updates.role = targetRole;
+    }
+
+    // Office Bearers and Admins ALWAYS have org-wide access (team_id = null)
+    if (targetRole === 'OFFICE_BEARER' || targetRole === 'ADMIN') {
+      updates.team_id = null;
+    } else if (team_id !== undefined) {
+      updates.team_id = team_id || null;
+    }
+
+    // Update public.profiles
+    const { data: updatedProfile, error: profileError } = await admin
+      .from('profiles')
+      .update(updates)
+      .eq('id', user_id)
+      .select()
+      .single();
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 400 });
+    }
+
+    // Synchronize team_members table
+    if (targetRole === 'OFFICE_BEARER' || targetRole === 'ADMIN') {
+      // Remove any specific team assignment since they have org-wide access
+      await admin.from('team_members').delete().eq('user_id', user_id);
+    } else if (updates.team_id && (targetRole === 'TEAM_MEMBER' || targetRole === 'TEAM_LEAD')) {
+      // Upsert into team_members
+      await admin.from('team_members').upsert({
+        user_id: user_id,
+        team_id: updates.team_id,
+        membership_role: targetRole,
+      });
+    }
+
+    // Synchronize auth.users metadata if role or full_name changed
+    const metadataUpdates: Record<string, any> = {};
+    if (targetRole) metadataUpdates.role = targetRole;
+    if (full_name) metadataUpdates.full_name = full_name.trim();
+
+    if (Object.keys(metadataUpdates).length > 0) {
+      await admin.auth.admin.updateUserById(user_id, {
+        user_metadata: metadataUpdates,
+        app_metadata: targetRole ? { role: targetRole } : undefined,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: updatedProfile,
+    });
+  } catch (err: any) {
+    console.error('Admin update user error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }

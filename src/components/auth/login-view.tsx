@@ -51,8 +51,8 @@ export const LoginView: React.FC = () => {
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-1.5">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white shadow-xs mb-1">
-            <Orbit className="w-6 h-6" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-black border border-gray-800 shadow-md mb-2 overflow-hidden p-1.5">
+            <img src="/logo.png" alt="SEDS Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
             SEDS REC

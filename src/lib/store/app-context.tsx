@@ -6,7 +6,8 @@ import {
   Profile, Team, Sprint, Task, TaskComment, Announcement, 
   ActivityLog, NotificationItem, LeadMessage, TaskStatus, TaskPriority,
   TaskAssignmentType, OpenTaskStatus, OpenTaskInterest, UserRole,
-  NotificationPriority, PushSubscriptionItem, NotificationPreferences, AccountStatus
+  NotificationPriority, PushSubscriptionItem, NotificationPreferences, AccountStatus,
+  SprintDocument, SprintDocumentType
 } from '@/types/database';
 import { Permissions } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase/client';
@@ -50,6 +51,7 @@ interface AppContextType {
   allProfiles: Profile[];
   teams: Team[];
   sprints: Sprint[];
+  sprintDocuments: SprintDocument[];
   tasks: Task[];
   visibleTasks: Task[];
   openTasks: Task[];
@@ -133,6 +135,20 @@ interface AppContextType {
   startSprint: (sprintId: string) => Promise<void>;
   completeSprint: (sprintId: string) => Promise<void>;
   
+  // Sprint Documents (stored directly in database)
+  uploadSprintDocument: (data: {
+    sprint_id: string;
+    team_id?: string | null;
+    title: string;
+    description?: string;
+    document_type: SprintDocumentType;
+    file_name?: string;
+    file_type?: string;
+    file_size?: number;
+    file_data?: string;
+  }) => Promise<SprintDocument>;
+  deleteSprintDocument: (documentId: string) => Promise<void>;
+  
   // Comments
   addComment: (taskId: string, content: string) => Promise<void>;
   
@@ -170,6 +186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprintDocuments, setSprintDocuments] = useState<SprintDocument[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -196,6 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notificationsRes,
         leadMsgsRes,
         prefsRes,
+        docsRes,
       ] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('teams').select('*').order('name'),
@@ -209,6 +227,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         supabase.from('notifications').select('*').eq('recipient_id', activeUserId).order('created_at', { ascending: false }),
         supabase.from('lead_messages').select('*').order('created_at', { ascending: false }),
         supabase.from('notification_preferences').select('*').eq('user_id', activeUserId).single(),
+        supabase.from('sprint_documents').select('*').order('created_at', { ascending: false }),
       ]);
 
       const allProfilesList: Profile[] = profilesRes.data || [];
@@ -284,6 +303,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setActivityLogs(activitiesRes.data || []);
       setNotifications(notificationsRes.data || []);
+
+      // Hydrate sprint documents
+      const rawDocs: any[] = docsRes.data || [];
+      const hydratedDocs: SprintDocument[] = rawDocs.map(d => ({
+        ...d,
+        uploader: allProfilesList.find(p => p.id === d.uploaded_by),
+        sprint_name: allSprintsList.find(s => s.id === d.sprint_id)?.name,
+        team_name: allTeamsList.find(t => t.id === d.team_id)?.name,
+      }));
+      setSprintDocuments(hydratedDocs);
 
       if (prefsRes.data) {
         setNotificationPreferences(prefsRes.data);
@@ -978,6 +1007,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (user) await fetchAllData(user.id);
   };
 
+  // Sprint Documents (stored directly in the database)
+  const uploadSprintDocument = async (data: {
+    sprint_id: string;
+    team_id?: string | null;
+    title: string;
+    description?: string;
+    document_type: SprintDocumentType;
+    file_name?: string;
+    file_type?: string;
+    file_size?: number;
+    file_data?: string;
+  }): Promise<SprintDocument> => {
+    if (!currentUser.id) throw new Error('Authentication required to upload deliverables.');
+
+    const sprint = sprints.find(s => s.id === data.sprint_id);
+    const targetTeamId = data.team_id || sprint?.team_id || null;
+
+    const payload = {
+      sprint_id: data.sprint_id,
+      team_id: targetTeamId,
+      title: data.title.trim(),
+      description: data.description?.trim() || null,
+      document_type: data.document_type || 'SPECIFICATION',
+      file_name: data.file_name || null,
+      file_type: data.file_type || null,
+      file_size: data.file_size || null,
+      file_data: data.file_data || null,
+      uploaded_by: currentUser.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: inserted, error } = await supabase
+      .from('sprint_documents')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error || !inserted) {
+      console.error('Error inserting sprint document:', error);
+      throw error || new Error('Failed to insert sprint document.');
+    }
+
+    const hydrated: SprintDocument = {
+      ...inserted,
+      uploader: currentUser,
+      sprint_name: sprint?.name,
+      team_name: teams.find(t => t.id === targetTeamId)?.name,
+    };
+
+    setSprintDocuments(prev => [hydrated, ...prev]);
+
+    // Log deliverable upload activity
+    await supabase.from('activity_logs').insert({
+      actor_id: currentUser.id,
+      team_id: targetTeamId,
+      sprint_id: data.sprint_id,
+      action: 'sprint_updated',
+      metadata: {
+        event: 'document_uploaded',
+        document_title: data.title,
+        document_type: data.document_type,
+        file_name: data.file_name,
+      },
+      created_at: new Date().toISOString(),
+    });
+
+    return hydrated;
+  };
+
+  const deleteSprintDocument = async (documentId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('sprint_documents')
+      .delete()
+      .eq('id', documentId);
+
+    if (error) {
+      console.error('Error deleting sprint document:', error);
+      throw error;
+    }
+
+    setSprintDocuments(prev => prev.filter(d => d.id !== documentId));
+  };
+
   // Communication & Comments
   const addComment = async (taskId: string, content: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -1143,7 +1256,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUser = async (userId: string, updates: Partial<Profile>) => {
-    await supabase.from('profiles').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', userId);
+    const finalUpdates = { ...updates };
+    // Office Bearers and Admins always have Org-Wide access (no team assignment)
+    if (finalUpdates.role === 'OFFICE_BEARER' || finalUpdates.role === 'ADMIN') {
+      finalUpdates.team_id = null;
+    }
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ user_id: userId, ...finalUpdates }),
+      });
+
+      if (!res.ok) {
+        // Fallback to direct supabase update
+        await supabase
+          .from('profiles')
+          .update({ ...finalUpdates, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+
+        if (finalUpdates.role === 'OFFICE_BEARER' || finalUpdates.role === 'ADMIN') {
+          await supabase.from('team_members').delete().eq('user_id', userId);
+        } else if (finalUpdates.team_id && finalUpdates.role) {
+          await supabase.from('team_members').upsert({
+            user_id: userId,
+            team_id: finalUpdates.team_id,
+            membership_role: finalUpdates.role,
+          });
+        }
+      }
+    } catch {
+      await supabase
+        .from('profiles')
+        .update({ ...finalUpdates, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+    }
+
+    // Optimistically update profiles so UI updates instantly
+    setProfiles(prev => prev.map(p => p.id === userId ? { ...p, ...finalUpdates } : p));
+
+    // If current logged-in user was modified, update currentUser state immediately
+    if (user && user.id === userId) {
+      setCurrentUser(prev => prev ? { ...prev, ...finalUpdates } : prev);
+    }
+
     if (user) await fetchAllData(user.id);
   };
 
@@ -1273,6 +1435,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     allProfiles: profiles,
     teams,
     sprints,
+    sprintDocuments,
     tasks,
     visibleTasks,
     openTasks,
@@ -1321,6 +1484,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateSprint,
     startSprint,
     completeSprint,
+
+    uploadSprintDocument,
+    deleteSprintDocument,
 
     addComment,
     createAnnouncement,

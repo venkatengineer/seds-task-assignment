@@ -26,6 +26,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   const { currentUser, signOut } = useApp();
   const canCreate = Permissions.isTeamLead(currentUser) || Permissions.isOfficeBearer(currentUser);
   const isAdmin = Permissions.isAdmin(currentUser);
+  const canManageUsers = Permissions.canManageUsers(currentUser);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -143,7 +144,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               </div>
 
               <div className="p-1 space-y-0.5">
-                {isAdmin && (
+                {canManageUsers && (
                   <Link
                     href="/admin"
                     onClick={() => setIsProfileOpen(false)}

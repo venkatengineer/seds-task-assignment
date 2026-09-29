@@ -118,8 +118,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Brand Header */}
         <div className="h-14 flex items-center gap-3 px-4 border-b border-gray-100 bg-white">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-            <Orbit className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-black border border-gray-800 shadow-xs shrink-0">
+            <img src="/logo.png" alt="SEDS Logo" className="w-full h-full object-contain p-0.5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">

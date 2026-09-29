@@ -38,8 +38,8 @@ export const AppShell: React.FC<AppShellProps> = ({
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center space-y-3">
-          <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-            <Orbit className="w-6 h-6 animate-spin duration-1000" />
+          <div className="w-14 h-14 rounded-2xl bg-black border border-gray-800 text-white flex items-center justify-center shadow-md overflow-hidden p-1.5 animate-pulse">
+            <img src="/logo.png" alt="SEDS Logo" className="w-full h-full object-contain" />
           </div>
           <div className="text-center">
             <h2 className="text-sm font-semibold text-gray-900">SEDS REC</h2>

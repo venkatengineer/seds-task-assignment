@@ -1,8 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+
+async function verifyAdminCaller(req: NextRequest): Promise<{ authorized: boolean; error?: string; status?: number }> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://liwxpqmpofjrlvggzhrk.supabase.co';
+    const supabaseAnonKey = 
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      'sb_publishable_M8J1Q_19BC80MSskMjdZGg_WPM_b9HR';
+
+    const authHeader = req.headers.get('authorization');
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll() {},
+      },
+    });
+
+    let callerUser = null;
+    if (bearerToken) {
+      const { data: { user }, error: userErr } = await supabase.auth.getUser(bearerToken);
+      if (!userErr && user) callerUser = user;
+    }
+
+    if (!callerUser) {
+      const { data: { user } } = await supabase.auth.getUser();
+      callerUser = user;
+    }
+
+    if (!callerUser) {
+      return { authorized: false, error: 'Unauthorized: Authentication required.', status: 401 };
+    }
+
+    const admin = getSupabaseAdmin();
+    const { data: callerProfile, error: profileErr } = await admin
+      .from('profiles')
+      .select('role, account_status')
+      .eq('id', callerUser.id)
+      .single();
+
+    if (profileErr || !callerProfile || callerProfile.account_status === 'SUSPENDED' || callerProfile.role !== 'ADMIN') {
+      return { authorized: false, error: 'Forbidden: Platform Administrator privileges required.', status: 403 };
+    }
+
+    return { authorized: true };
+  } catch (err: any) {
+    return { authorized: false, error: 'Authentication verification failed: ' + (err.message || 'Unknown error'), status: 401 };
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const authCheck = await verifyAdminCaller(req);
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+    }
+
     const body = await req.json();
     const { full_name, email, role, team_id, title, password } = body;
 
@@ -96,6 +154,11 @@ export async function POST(req: NextRequest) {
 // Reset member password to Seds@2026
 export async function PATCH(req: NextRequest) {
   try {
+    const authCheck = await verifyAdminCaller(req);
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: authCheck.status || 401 });
+    }
+
     const body = await req.json();
     const { user_id, password } = body;
 

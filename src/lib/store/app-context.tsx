@@ -1122,9 +1122,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     title?: string;
     password?: string;
   }): Promise<Profile> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     const res = await fetch('/api/admin/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(data),
     });
 
@@ -1161,9 +1166,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const adminResetPassword = async (userId: string, customPassword?: string): Promise<{ success?: boolean; error?: string; password?: string }> => {
     try {
       const targetPassword = customPassword?.trim() || 'Seds@2026';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ user_id: userId, password: targetPassword }),
       });
       const json = await res.json();

@@ -131,6 +131,11 @@ export interface Task {
   requires_approval?: boolean;
   skills?: string[];
   interested_count?: number;
+  // Verification & Historical Archival
+  is_verified?: boolean;
+  verified_at?: string | null;
+  verified_by?: string | null;
+  verifier?: Profile | null;
   // Augmented/Joined properties
   team_name?: string;
   sprint_name?: string;
@@ -174,6 +179,8 @@ export interface ActivityLog {
     | 'task_assigned'
     | 'task_reassigned'
     | 'task_completed'
+    | 'task_verified'
+    | 'task_unverified'
     | 'task_status_changed'
     | 'sprint_created'
     | 'sprint_started'
@@ -230,6 +237,7 @@ export type NotificationType =
   | 'TASK_ASSIGNED'
   | 'TASK_UPDATED'
   | 'TASK_COMPLETED'
+  | 'TASK_VERIFIED'
   | 'TASK_COMMENT'
   | 'TASK_BLOCKED'
   | 'OPEN_TASK_PUBLISHED'

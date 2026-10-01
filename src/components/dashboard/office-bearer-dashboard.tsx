@@ -21,6 +21,7 @@ export const OfficeBearerDashboard: React.FC<{
   const activeSprints = sprints.filter(s => s.status === 'ACTIVE');
   const activeTasks = tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'BACKLOG');
   const completedTasks = tasks.filter(t => t.status === 'COMPLETED');
+  const verifiedTasks = tasks.filter(t => t.is_verified);
   const blockedTasks = tasks.filter(t => t.status === 'BLOCKED');
 
   // Overdue calculation
@@ -95,7 +96,7 @@ export const OfficeBearerDashboard: React.FC<{
         <div className="p-3.5 bg-white border border-gray-200 rounded-xl shadow-xs">
           <span className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider">COMPLETED</span>
           <div className="text-2xl font-bold text-emerald-600 mt-1">{completedTasks.length}</div>
-          <span className="text-[10px] text-emerald-600">Verified</span>
+          <span className="text-[10px] text-emerald-600">{verifiedTasks.length} verified in history</span>
         </div>
 
         <div className="p-3.5 bg-white border border-gray-200 rounded-xl shadow-xs">

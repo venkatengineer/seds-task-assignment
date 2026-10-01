@@ -810,6 +810,12 @@ export const MemberDetailAnalytics: React.FC<MemberDetailAnalyticsProps> = ({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <TaskStatusBadge status={task.status} size="sm" />
+                        {task.is_verified && (
+                          <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>Verified</span>
+                          </span>
+                        )}
                         <PriorityBadge priority={task.priority} size="sm" />
                         <span className="text-[10px] font-bold font-mono bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200">
                           {task.story_points} pts

@@ -185,6 +185,7 @@ export const TeamLeadDashboard: React.FC<{
           <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
             <span className="text-[11px] font-semibold uppercase text-emerald-700 block">Completed</span>
             <span className="text-xl font-bold text-emerald-600 mt-0.5 block">{completedTasks.length}</span>
+            <span className="text-[10px] text-emerald-600">{sprintTasks.filter(t => t.is_verified).length} verified in history</span>
           </div>
           <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
             <span className="text-[11px] font-semibold uppercase text-amber-800 block">Overdue</span>

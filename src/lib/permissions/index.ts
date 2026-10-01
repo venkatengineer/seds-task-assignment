@@ -117,5 +117,13 @@ export const Permissions = {
 
   canSendBroadcast(user: Profile | null | undefined): boolean {
     return user?.role === 'OFFICE_BEARER' || user?.role === 'TEAM_LEAD';
+  },
+
+  canVerifyTask(user: Profile | null | undefined, task: Task): boolean {
+    if (!user) return false;
+    if (user.role === 'OFFICE_BEARER' || user.role === 'ADMIN') return true;
+    if (user.role === 'TEAM_LEAD' && user.team_id === task.team_id) return true;
+    if (task.created_by === user.id) return true;
+    return false;
   }
 };

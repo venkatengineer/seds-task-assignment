@@ -54,6 +54,7 @@ interface AppContextType {
   sprintDocuments: SprintDocument[];
   tasks: Task[];
   visibleTasks: Task[];
+  verifiedTasks: Task[];
   openTasks: Task[];
   openTaskInterests: OpenTaskInterest[];
   comments: TaskComment[];
@@ -113,6 +114,8 @@ interface AppContextType {
   }) => Promise<Task>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => Promise<void>;
+  verifyTask: (taskId: string) => Promise<void>;
+  unverifyTask: (taskId: string) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   moveTaskToSprint: (taskId: string, sprintId: string | null) => Promise<void>;
 
@@ -253,8 +256,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const sprint = allSprintsList.find(s => s.id === t.sprint_id);
         const team = allTeamsList.find(tm => tm.id === t.team_id);
         const creator = allProfilesList.find(p => p.id === t.created_by);
+        const verifier = allProfilesList.find(p => p.id === t.verified_by);
         return {
           ...t,
+          is_verified: Boolean(t.is_verified),
+          verified_at: t.verified_at || null,
+          verified_by: t.verified_by || null,
+          verifier,
           assignee_ids: aIds,
           assignees,
           sprint_name: sprint?.name,
@@ -500,6 +508,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const visibleTasks = useMemo(() => {
     if (!currentUser.id) return [];
     return tasks.filter(t => Permissions.canViewTask(currentUser, t));
+  }, [currentUser, tasks]);
+
+  const verifiedTasks = useMemo(() => {
+    if (!currentUser.id) return [];
+    return tasks.filter(t => t.is_verified && Permissions.canViewTask(currentUser, t));
   }, [currentUser, tasks]);
 
   const openTasks = useMemo(() => {
@@ -752,9 +765,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const existingTask = tasks.find(t => t.id === taskId);
     if (!existingTask) return;
 
+    const updates: Record<string, any> = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (newStatus !== 'COMPLETED' && existingTask.is_verified) {
+      updates.is_verified = false;
+      updates.verified_at = null;
+      updates.verified_by = null;
+    }
+
     await supabase
       .from('tasks')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', taskId);
 
     // Automated Status Notifications
@@ -776,7 +800,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const doneNotifs = targets.map(tgt => ({
         recipient_id: tgt.id,
         title: `Task Completed: ${existingTask.title}`,
-        message: `${currentUser.full_name} completed task "${existingTask.title}".`,
+        message: `${currentUser.full_name} completed task "${existingTask.title}". Ready for Lead verification.`,
         type: 'TASK_COMPLETED',
         priority: 'INFO',
         action_url: '/tasks',
@@ -784,6 +808,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         created_at: new Date().toISOString(),
       }));
       await supabase.from('notifications').insert(doneNotifs);
+    }
+
+    if (user) await fetchAllData(user.id);
+  };
+
+  const verifyTask = async (taskId: string) => {
+    const existingTask = tasks.find(t => t.id === taskId);
+    if (!existingTask) return;
+
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        status: 'COMPLETED',
+        is_verified: true,
+        verified_at: now,
+        verified_by: currentUser.id,
+        updated_at: now,
+      })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error verifying task:', error);
+      return;
+    }
+
+    // Activity Log
+    try {
+      await supabase.from('activity_logs').insert({
+        actor_id: currentUser.id,
+        team_id: existingTask.team_id,
+        task_id: existingTask.id,
+        sprint_id: existingTask.sprint_id,
+        action: 'task_verified',
+        metadata: {
+          title: existingTask.title,
+          verified_by: currentUser.full_name,
+          verified_at: now,
+        },
+        created_at: now,
+      });
+    } catch (e) {
+      console.warn('Activity log error:', e);
+    }
+
+    // Notify task assignees that task is verified & archived to history
+    try {
+      const targets = (existingTask.assignee_ids || []).filter(id => id !== currentUser.id);
+      if (targets.length > 0) {
+        const notifs = targets.map(assigneeId => ({
+          recipient_id: assigneeId,
+          title: `Task Verified: ${existingTask.title}`,
+          message: `${currentUser.full_name} verified your deliverable "${existingTask.title}". It has been archived into Task History.`,
+          type: 'TASK_VERIFIED',
+          priority: 'INFO',
+          action_url: '/tasks',
+          is_read: false,
+          created_at: now,
+        }));
+        await supabase.from('notifications').insert(notifs);
+      }
+    } catch (e) {
+      console.warn('Notification error:', e);
+    }
+
+    if (user) await fetchAllData(user.id);
+  };
+
+  const unverifyTask = async (taskId: string) => {
+    const existingTask = tasks.find(t => t.id === taskId);
+    if (!existingTask) return;
+
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        is_verified: false,
+        verified_at: null,
+        verified_by: null,
+        updated_at: now,
+      })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error unverifying task:', error);
+      return;
+    }
+
+    try {
+      await supabase.from('activity_logs').insert({
+        actor_id: currentUser.id,
+        team_id: existingTask.team_id,
+        task_id: existingTask.id,
+        sprint_id: existingTask.sprint_id,
+        action: 'task_unverified',
+        metadata: {
+          title: existingTask.title,
+          restored_by: currentUser.full_name,
+        },
+        created_at: now,
+      });
+    } catch (e) {
+      console.warn('Activity log error:', e);
     }
 
     if (user) await fetchAllData(user.id);
@@ -1438,6 +1565,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sprintDocuments,
     tasks,
     visibleTasks,
+    verifiedTasks,
     openTasks,
     openTaskInterests,
     comments,
@@ -1472,6 +1600,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     createTask,
     updateTask,
     updateTaskStatus,
+    verifyTask,
+    unverifyTask,
     deleteTask,
     moveTaskToSprint,
 

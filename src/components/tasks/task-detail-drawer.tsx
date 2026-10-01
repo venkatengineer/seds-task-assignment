@@ -10,7 +10,8 @@ import { TaskStatus, TaskPriority } from '@/types/database';
 import { formatDate, formatTimeAgo } from '@/lib/utils';
 import { 
   Calendar, MessageSquare, Send, 
-  Trash2, ShieldAlert, Compass, Clock 
+  Trash2, ShieldAlert, Compass, Clock,
+  CheckCircle2, CheckCheck, Archive
 } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
@@ -25,6 +26,7 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
   const { 
     currentUser, tasks, comments, activityLogs, 
     updateTaskStatus, updateTask, deleteTask, addComment,
+    verifyTask, unverifyTask,
     openTaskInterests, expressInterest, withdrawInterest, 
     approveInterest, rejectInterest, allProfiles
   } = useApp();
@@ -41,6 +43,7 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
   const canEdit = Permissions.canEditTask(currentUser, task);
   const canUpdateStatus = Permissions.canUpdateTaskStatus(currentUser, task);
   const canDelete = Permissions.canDeleteTask(currentUser, task);
+  const canVerify = Permissions.canVerifyTask(currentUser, task);
 
   if (!canView) {
     return (
@@ -101,6 +104,12 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <TaskStatusBadge status={task.status} />
+            {task.is_verified && (
+              <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1 font-semibold">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                <span>Verified Deliverable</span>
+              </span>
+            )}
             <PriorityBadge priority={task.priority} />
             <span className="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200 font-mono font-medium">
               {task.story_points} Points
@@ -278,6 +287,69 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Deliverable Verification & Task History Section */}
+        {task.status === 'COMPLETED' && (
+          <div className={`p-4 rounded-xl border ${task.is_verified ? 'bg-emerald-50/70 border-emerald-200' : 'bg-blue-50/70 border-blue-200'} space-y-2.5`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className={`w-4 h-4 ${task.is_verified ? 'text-emerald-600' : 'text-blue-600'}`} />
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-900">
+                  {task.is_verified ? 'Deliverable Verified & Archived' : 'Deliverable Awaiting Verification'}
+                </span>
+              </div>
+              {task.is_verified ? (
+                <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                  In Task History
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">
+                  Completed by Team
+                </span>
+              )}
+            </div>
+
+            {task.is_verified ? (
+              <div className="space-y-2 pt-1 text-xs text-gray-600 border-t border-emerald-200/60">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    Verified by <span className="font-semibold text-gray-900">{task.verifier?.full_name || 'Team Lead'}</span> on {formatDate(task.verified_at)}.
+                    <p className="text-[11px] text-gray-500 mt-0.5">This task has been removed from the active board and stored permanently in Task History.</p>
+                  </div>
+                  {canVerify && (
+                    <button
+                      type="button"
+                      onClick={() => unverifyTask(task.id)}
+                      className="px-2.5 py-1 text-xs text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-100 rounded-lg border border-gray-200 font-medium transition-colors shrink-0 shadow-2xs"
+                    >
+                      Restore to Board
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-blue-200/60">
+                <p className="text-xs text-gray-600">
+                  Team members have completed this deliverable. Clicking &quot;Verify Deliverable&quot; archives the task from the board into Task History.
+                </p>
+                {canVerify ? (
+                  <button
+                    type="button"
+                    onClick={() => verifyTask(task.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span>Verify Deliverable</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-gray-400 italic">
+                    Awaiting Team Lead or Office Bearer verification
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Description */}
         <div>

@@ -82,9 +82,9 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
   const remaining = users.length - max;
 
   return (
-    <div className={cn('flex items-center -space-x-2 overflow-hidden', className)}>
+    <div className={cn('flex items-center -space-x-1.5', className)}>
       {visible.map((user) => (
-        <div key={user.id} className="ring-2 ring-slate-950 rounded-full">
+        <div key={user.id} className="ring-2 ring-white rounded-full shrink-0">
           <UserAvatar user={user} size={size} showTooltip />
         </div>
       ))}
@@ -92,7 +92,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
         <div
           title={`${remaining} more assignee${remaining > 1 ? 's' : ''}`}
           className={cn(
-            'relative inline-flex items-center justify-center rounded-full font-mono font-medium bg-slate-800 text-slate-300 ring-2 ring-slate-950 border border-slate-700 text-xs px-1',
+            'relative inline-flex items-center justify-center rounded-full font-mono font-medium bg-gray-100 text-gray-700 ring-2 ring-white border border-gray-200 text-xs shrink-0',
             size === 'xs' ? 'w-5 h-5 text-[9px]' : size === 'sm' ? 'w-7 h-7 text-[11px]' : 'w-9 h-9 text-xs'
           )}
         >
